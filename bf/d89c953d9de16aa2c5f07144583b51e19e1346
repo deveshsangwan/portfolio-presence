@@ -1,0 +1,88 @@
+docs/providers/played-events.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-32
+docs/recipes/portfolio-pills.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-22
+pnpm-workspace.yaml
+  s_ccd7e5d891742e::t_4ee966266e5377 6
+  s_ccd7e5d891742e::t_bc2bafc085cc5d 1-3
+docs/.vitepress/config.ts
+  s_ccd7e5d891742e::t_f2796920385d81 1-57
+examples/next-basic/app/presence-client.tsx
+  s_ccd7e5d891742e::t_4f39685956a188 1-14
+examples/next-basic/app/api/presence/route.ts
+  s_ccd7e5d891742e::t_4f39685956a188 1-4
+docs/frameworks/nextjs.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-22
+docs/recipes/ios-shortcut.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-22
+test/integration/package-consumer.test.ts
+  s_ccd7e5d891742e::t_6a61f87031999a 1,3-48,50-52,56-57,59-235
+  s_ccd7e5d891742e::t_07f0394aabbfd3 2,49,53-55,58
+docs/index.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-24
+examples/next-basic/tsconfig.json
+  s_ccd7e5d891742e::t_89460228ec7a5d 7-12,26-35
+  s_ccd7e5d891742e::t_4f39685956a188 1-6,13-25,36
+docs/providers/github.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-28
+README.md
+  s_ccd7e5d891742e::t_f2796920385d81 5-6
+examples/next-basic/app/page.tsx
+  s_ccd7e5d891742e::t_4f39685956a188 1-20
+package.json
+  s_ccd7e5d891742e::t_1550fd61aa8c8a 8-22,33-36
+  s_ccd7e5d891742e::t_bc2bafc085cc5d 54-57,59-62
+  s_ccd7e5d891742e::t_90c7df1fe43592 76-77,80,83
+.gitignore
+  s_ccd7e5d891742e::t_d150d3d66beece 5-6
+  s_ccd7e5d891742e::t_4f39685956a188 4
+docs/concepts.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-31
+examples/next-basic/app/api/presence/played/route.ts
+  s_ccd7e5d891742e::t_4f39685956a188 1-6
+examples/next-basic/next-env.d.ts
+  s_ccd7e5d891742e::t_89460228ec7a5d 1-6
+.github/workflows/publish.yml
+  s_ccd7e5d891742e::t_1550fd61aa8c8a 1-42
+docs/api.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-29
+docs/storage.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-20
+examples/next-basic/next.config.ts
+  s_ccd7e5d891742e::t_4f39685956a188 1-5
+examples/next-basic/package.json
+  s_ccd7e5d891742e::t_4f39685956a188 1-19
+examples/next-basic/app/layout.tsx
+  s_ccd7e5d891742e::t_4f39685956a188 1-14
+examples/next-basic/lib/presence.ts
+  s_ccd7e5d891742e::t_4f39685956a188 1-27
+docs/frameworks/node.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-20
+docs/quick-start.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-66
+docs/frameworks/react.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-26
+.github/workflows/ci.yml
+  s_ccd7e5d891742e::t_abfdccbdca4f6c 1-17,19-20,22-48,50-51,53-66,68-69,71-75
+  s_ccd7e5d891742e::t_2917d668637dd3 18,21,49,52,67,70,76
+docs/providers/lastfm.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-21
+docs/privacy.md
+  s_ccd7e5d891742e::t_f2796920385d81 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "bfd89c953d9de16aa2c5f07144583b51e19e1346",
+  "prompts": {},
+  "sessions": {
+    "s_ccd7e5d891742e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec09e-499c-76a1-9a33-f7fa44c0226d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
