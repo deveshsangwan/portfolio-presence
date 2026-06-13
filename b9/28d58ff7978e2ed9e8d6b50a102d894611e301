@@ -1,0 +1,78 @@
+src/react.ts
+  s_ccd7e5d891742e::t_d6dfe57eda340c 1-83
+README.md
+  s_ccd7e5d891742e::t_664467cd6053e7 1-210
+pnpm-workspace.yaml
+  s_ccd7e5d891742e::t_777c47d9adbb62 1
+  s_ccd7e5d891742e::t_31f1aad0a8fe3e 2
+src/core/errors.ts
+  s_ccd7e5d891742e::t_4fff424a65c3a0 1-26
+src/sources/lastfm.ts
+  s_ccd7e5d891742e::t_b329725ae15019 1-6,8-94,96-100,102-107,109-173
+  s_ccd7e5d891742e::t_c4de898a51a4f2 7,95,108
+  s_ccd7e5d891742e::t_a24702e00755f8 101
+src/core/types.ts
+  s_ccd7e5d891742e::t_4fff424a65c3a0 1-178
+src/core/store.ts
+  s_ccd7e5d891742e::t_4fff424a65c3a0 1-38,44-45,47-53
+  s_ccd7e5d891742e::t_881ab11f8df398 39-43,46
+package.json
+  s_ccd7e5d891742e::t_4f346cf922e2de 1-33,35-47,57
+  s_ccd7e5d891742e::t_777c47d9adbb62 48-56
+  s_ccd7e5d891742e::t_955fbce2994346 34
+src/sources/github.ts
+  s_ccd7e5d891742e::t_b329725ae15019 1-7,9-104,106-107,109-113,115-176,178-181,183-193
+  s_ccd7e5d891742e::t_c4de898a51a4f2 8,105,114,177,182
+  s_ccd7e5d891742e::t_a24702e00755f8 108
+LICENSE
+  s_ccd7e5d891742e::t_4f346cf922e2de 1-21
+src/sources/played.ts
+  s_ccd7e5d891742e::t_a24702e00755f8 27
+  s_ccd7e5d891742e::t_b329725ae15019 1-8,10-26,28-35,41-68,70-77
+  s_ccd7e5d891742e::t_c4de898a51a4f2 9,36-40
+  s_ccd7e5d891742e::t_0a7c593a2113f6 69
+src/core/presence.ts
+  s_ccd7e5d891742e::t_4fff424a65c3a0 1-23,25-47,49-113,115-117,119-295,297-318,320-337,339-357
+  s_ccd7e5d891742e::t_881ab11f8df398 24,48,114,118
+  s_ccd7e5d891742e::t_a24702e00755f8 296,319,338
+tsconfig.json
+  s_ccd7e5d891742e::t_4f346cf922e2de 1-5,7-24
+  s_ccd7e5d891742e::t_6dda95b920cff8 6
+src/next.ts
+  s_ccd7e5d891742e::t_c4de898a51a4f2 20-24,26
+  s_ccd7e5d891742e::t_d6dfe57eda340c 1-19,25,27-131
+src/index.ts
+  s_ccd7e5d891742e::t_b329725ae15019 1-35
+scripts/mark-react-client.mjs
+  s_ccd7e5d891742e::t_955fbce2994346 1-9
+src/core/utils.ts
+  s_ccd7e5d891742e::t_4fff424a65c3a0 1-2,12-85,94
+  s_ccd7e5d891742e::t_881ab11f8df398 3-11,86-93
+.gitignore
+  s_ccd7e5d891742e::t_881ab11f8df398 4
+  s_ccd7e5d891742e::t_4f346cf922e2de 1-3,5-6
+vitest.config.ts
+  s_ccd7e5d891742e::t_4f346cf922e2de 1-10
+test/presence.test.ts
+  s_ccd7e5d891742e::t_c960b5ad262532 1-240
+tsup.config.ts
+  s_ccd7e5d891742e::t_4f346cf922e2de 2,5,11,13-16
+  s_ccd7e5d891742e::t_955fbce2994346 1,3-4,6-10,17
+  s_ccd7e5d891742e::t_eea442a0089987 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "b928d58ff7978e2ed9e8d6b50a102d894611e301",
+  "prompts": {},
+  "sessions": {
+    "s_ccd7e5d891742e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec09e-499c-76a1-9a33-f7fa44c0226d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
