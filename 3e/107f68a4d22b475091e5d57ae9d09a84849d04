@@ -1,0 +1,21 @@
+.github/workflows/publish.yml
+  s_ccd7e5d891742e::t_5dda4c9e928237 33-35
+.github/workflows/ci.yml
+  s_ccd7e5d891742e::t_5dda4c9e928237 26-28,58-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "3e107f68a4d22b475091e5d57ae9d09a84849d04",
+  "prompts": {},
+  "sessions": {
+    "s_ccd7e5d891742e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec09e-499c-76a1-9a33-f7fa44c0226d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
