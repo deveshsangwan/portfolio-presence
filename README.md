@@ -2,6 +2,8 @@
 
 Privacy-first presence snapshots for portfolio sites.
 
+Full documentation: https://deveshsangwan.github.io/portfolio-presence/
+
 `portfolio-presence` turns a few low-maintenance activity sources into a small
 public JSON snapshot you can render however you want. It is designed for
 portfolio cards like:
