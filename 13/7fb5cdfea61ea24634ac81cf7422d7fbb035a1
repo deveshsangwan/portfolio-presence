@@ -1,0 +1,42 @@
+test/integration/package-consumer.test.ts
+  s_cec8bfd3fce734::t_ab549e8e7c5533 129,161-168
+src/index.ts
+  s_cec8bfd3fce734::t_3994bee0d87600 33-39
+README.md
+  s_cec8bfd3fce734::t_b84cd59d238e1c 184
+  s_cec8bfd3fce734::t_c3451393be7c31 11,60-63,183
+src/sources/github.ts
+  s_cec8bfd3fce734::t_bf96b31cbc6de9 51,57-59,65-70
+  s_cec8bfd3fce734::t_0edd3cd96b085a 73-77,86-96,99,103,105-107,109-112,114-121,123-127,130-131,133-134,136-138,140-163,165-171
+  s_cec8bfd3fce734::t_760198b4cd0f8a 176,201-232
+  s_cec8bfd3fce734::t_4136820566f289 18,27-41
+  s_cec8bfd3fce734::t_d83a714eb7f28a 250-271,297-347
+docs/quick-start.md
+  s_cec8bfd3fce734::t_f0d9162f8cf085 31-34
+test/presence.test.ts
+  s_cec8bfd3fce734::t_0b08977c2fa4bd 192-412
+docs/privacy.md
+  s_cec8bfd3fce734::t_dbd58cc2338d01 5-6
+docs/providers/github.md
+  s_cec8bfd3fce734::t_e3c8c02964b314 5-29,46-49
+docs/api.md
+  s_cec8bfd3fce734::t_80cc33fb64c200 10
+docs/index.md
+  s_cec8bfd3fce734::t_67ad3d2340b8d4 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "137fb5cdfea61ea24634ac81cf7422d7fbb035a1",
+  "prompts": {},
+  "sessions": {
+    "s_cec8bfd3fce734": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec6e9-6bcf-70c2-959d-651510049ae5",
+        "model": "gpt-5.5"
+      },
+      "human_author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
