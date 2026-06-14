@@ -28,7 +28,10 @@ export const presence = definePresence({
     building: githubSource({
       username: "deveshsangwan",
       token: process.env.GITHUB_TOKEN,
-      repos: [{ name: "investment-sync", label: "Investment Sync" }]
+      mode: "public",
+      excludeRepos: ["old-demo", "test-repo"],
+      includeForks: false,
+      includeArchived: false
     }),
     playing: playedEventSource({ store }),
     listening: lastFmSource({

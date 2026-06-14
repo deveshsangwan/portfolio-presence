@@ -30,6 +30,12 @@ export type {
   PresenceStore,
   RecordablePlayingSource
 } from "./core/types";
-export { githubSource, type GitHubRepoConfig, type GitHubSourceOptions } from "./sources/github";
+export {
+  githubSource,
+  type GitHubAllowlistOptions,
+  type GitHubPublicOptions,
+  type GitHubRepoConfig,
+  type GitHubSourceOptions
+} from "./sources/github";
 export { lastFmSource, type LastFmSourceOptions } from "./sources/lastfm";
 export { playedEventSource, type PlayedEventSourceOptions } from "./sources/played";

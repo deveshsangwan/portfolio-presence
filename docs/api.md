@@ -7,7 +7,7 @@
 
 ## Sources
 
-- `githubSource(options)`: creates a Building source from allowlisted GitHub repos.
+- `githubSource(options)`: creates a Building source from public or allowlisted GitHub repos.
 - `lastFmSource(options)`: creates a Listening source from Last.fm recent tracks.
 - `playedEventSource(options)`: creates a recordable Playing source.
 

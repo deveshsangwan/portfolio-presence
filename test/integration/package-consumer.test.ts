@@ -126,6 +126,7 @@ async function writeConsumerFiles(dir: string) {
         lastFmSource,
         memoryStore,
         playedEventSource,
+        type GitHubSourceOptions,
         type PresenceSnapshot
       } from "portfolio-presence";
       import {
@@ -157,6 +158,14 @@ async function writeConsumerFiles(dir: string) {
         repos: ["portfolio-presence"],
         username: "deveshsangwan"
       });
+      const publicGithubOptions: GitHubSourceOptions = {
+        excludeRepos: ["old-demo", "deveshsangwan/test-repo"],
+        includeArchived: false,
+        includeForks: false,
+        mode: "public",
+        username: "deveshsangwan"
+      };
+      const _publicGithub = githubSource(publicGithubOptions);
       const _lastfm = lastFmSource({
         apiKey: "test",
         username: "devesh"
