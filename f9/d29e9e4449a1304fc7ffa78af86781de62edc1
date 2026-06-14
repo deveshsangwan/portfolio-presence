@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_ccd7e5d891742e::t_9b6e9633a4a048 70-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "f9d29e9e4449a1304fc7ffa78af86781de62edc1",
+  "prompts": {},
+  "sessions": {
+    "s_ccd7e5d891742e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec09e-499c-76a1-9a33-f7fa44c0226d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
