@@ -1,0 +1,19 @@
+{
+  "name": "portfolio-presence-next-basic",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build"
+  },
+  "dependencies": {
+    "next": "^16.2.9",
+    "portfolio-presence": "workspace:*",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^6.0.3"
+  }
+}

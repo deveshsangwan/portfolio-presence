@@ -5,6 +5,21 @@
   "type": "module",
   "license": "MIT",
   "author": "Devesh Sangwan",
+  "homepage": "https://deveshsangwan.github.io/portfolio-presence/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deveshsangwan/portfolio-presence.git"
+  },
+  "bugs": {
+    "url": "https://github.com/deveshsangwan/portfolio-presence/issues"
+  },
+  "keywords": [
+    "portfolio",
+    "presence",
+    "github",
+    "lastfm",
+    "nextjs"
+  ],
   "sideEffects": false,
   "packageManager": "pnpm@11.5.2",
   "engines": {
@@ -15,6 +30,10 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -32,9 +51,15 @@
   },
   "scripts": {
     "build": "tsup && node scripts/mark-react-client.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm publint",
+    "check": "pnpm typecheck && pnpm test:unit && pnpm build && pnpm publint && pnpm test:integration && pnpm test:examples && pnpm docs:build",
+    "docs:build": "vitepress build docs",
+    "docs:dev": "vitepress dev docs",
+    "docs:preview": "vitepress preview docs",
     "publint": "publint",
-    "test": "vitest run",
+    "test": "pnpm test:unit",
+    "test:examples": "pnpm --dir examples/next-basic build",
+    "test:integration": "vitest run test/integration",
+    "test:unit": "vitest run test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -48,10 +73,14 @@
   "devDependencies": {
     "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "next": "^16.2.9",
     "publint": "^0.3.21",
     "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.8"
   }
 }
