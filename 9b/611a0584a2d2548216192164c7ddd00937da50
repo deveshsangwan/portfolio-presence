@@ -1,0 +1,22 @@
+src/sources/github.ts
+  s_ccd7e5d891742e::t_3dd7472af52b96 77,84
+test/presence.test.ts
+  s_ccd7e5d891742e::t_3dd7472af52b96 153,157-159,166-171
+  s_ccd7e5d891742e::t_700b0da1ab1888 154-156,160-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "9b611a0584a2d2548216192164c7ddd00937da50",
+  "prompts": {},
+  "sessions": {
+    "s_ccd7e5d891742e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec09e-499c-76a1-9a33-f7fa44c0226d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
