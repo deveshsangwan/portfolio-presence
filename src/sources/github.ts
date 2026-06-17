@@ -74,14 +74,14 @@ export function githubSource(options: GitHubSourceOptions): PresenceSource<Build
     return createGitHubSource(options, (fetchImpl) => fetchLatestPublicRepo(options, fetchImpl));
   }
 
-  const normalizedRepos = options.repos.map((repo) => normalizeRepoConfig(repo, options.username));
-
-  if (normalizedRepos.length === 0) {
+  if (!Array.isArray(options.repos) || options.repos.length === 0) {
     throw new PresenceError("GitHub source requires at least one allowlisted repo.", {
       code: "github_repos_required",
       status: 400
     });
   }
+
+  const normalizedRepos = options.repos.map((repo) => normalizeRepoConfig(repo, options.username));
 
   return createGitHubSource(options, (fetchImpl) =>
     fetchLatestAllowlistedRepo(normalizedRepos, options, fetchImpl)

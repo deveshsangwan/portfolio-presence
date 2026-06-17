@@ -150,6 +150,25 @@ describe("played event ingestion", () => {
 });
 
 describe("githubSource", () => {
+  it("throws a PresenceError when allowlist repos are missing at runtime", () => {
+    let error: unknown;
+
+    try {
+      githubSource({
+        mode: "allowlist",
+        username: "devesh"
+      } as Parameters<typeof githubSource>[0]);
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toMatchObject({
+      code: "github_repos_required",
+      message: "GitHub source requires at least one allowlisted repo.",
+      status: 400
+    });
+  });
+
   it("chooses the latest public allowlisted repo and avoids private repo names by default", async () => {
     const fetchMock: FetchLike = async (input) => {
       const url = String(input);
