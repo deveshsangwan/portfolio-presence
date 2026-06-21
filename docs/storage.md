@@ -28,6 +28,7 @@ The package owns the cache policy and passes it to `PresenceStore.set`:
   Omit it to keep fallback data indefinitely.
 - `playedEventSource({ ttlSeconds })` optionally expires the last recorded game.
 - A TTL of `0` means the corresponding key is not retained.
+- TTLs must be finite, non-negative numbers.
 
 The store adapter owns the backend-specific operation. For example, a Redis
 adapter should translate a positive `ttlSeconds` into its client's expiry option

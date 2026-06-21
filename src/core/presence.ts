@@ -1,5 +1,5 @@
 import { getErrorMessage, PresenceError } from "./errors";
-import { memoryStore, setStoreValue } from "./store";
+import { assertValidTtlSeconds, memoryStore, setStoreValue } from "./store";
 import type {
   BuildingFallback,
   BuildingPresenceCard,
@@ -286,12 +286,18 @@ function normalizeCache(cache: false | PresenceCacheOptions | undefined) {
     return undefined;
   }
 
+  const ttlSeconds = cache?.ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS;
+  const lastGoodTtlSeconds = cache?.lastGoodTtlSeconds;
+
+  assertValidTtlSeconds(ttlSeconds);
+  assertValidTtlSeconds(lastGoodTtlSeconds);
+
   return {
     key: cache?.key ?? DEFAULT_CACHE_KEY,
     lastGoodKey: cache?.lastGoodKey ?? DEFAULT_LAST_GOOD_KEY,
-    lastGoodTtlSeconds: cache?.lastGoodTtlSeconds,
+    lastGoodTtlSeconds,
     store: cache?.store ?? memoryStore(),
-    ttlSeconds: cache?.ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS
+    ttlSeconds
   } satisfies NormalizedCache;
 }
 

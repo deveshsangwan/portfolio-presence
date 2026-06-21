@@ -10,6 +10,7 @@ import {
   type PresenceStore,
   type PresenceSource
 } from "../src";
+import { setStoreValue } from "../src/core/store";
 import { createPlayedIngestHandler } from "../src/next";
 
 function recordingStore(): PresenceStore & {
@@ -36,6 +37,21 @@ function recordingStore(): PresenceStore & {
     }
   };
 }
+
+describe("store TTL validation", () => {
+  it.each([-1, Number.NaN, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY])(
+    "rejects invalid TTL %p before changing the store",
+    async (ttlSeconds) => {
+      const store = recordingStore();
+
+      await expect(setStoreValue(store, "key", { value: true }, ttlSeconds)).rejects.toThrow(
+        "ttlSeconds must be a finite number greater than or equal to 0."
+      );
+      expect(store.deletedKeys).toEqual([]);
+      expect(store.writes).toEqual([]);
+    }
+  );
+});
 
 describe("definePresence", () => {
   it("returns cached snapshots within the cache ttl", async () => {
@@ -181,6 +197,20 @@ describe("definePresence", () => {
 
     expect(store.deletedKeys).toEqual(["snapshot", "snapshot:last-good"]);
     expect(store.writes).toEqual([]);
+  });
+
+  it("rejects invalid cache TTLs before writing a snapshot", () => {
+    expect(() =>
+      definePresence({
+        cache: { ttlSeconds: Number.POSITIVE_INFINITY }
+      })
+    ).toThrow("ttlSeconds must be a finite number greater than or equal to 0.");
+
+    expect(() =>
+      definePresence({
+        cache: { lastGoodTtlSeconds: Number.NaN }
+      })
+    ).toThrow("ttlSeconds must be a finite number greater than or equal to 0.");
   });
 });
 

@@ -16,7 +16,8 @@ export interface PlayedEventSourceOptions {
   store: PresenceStore;
   /**
    * Optional expiry for the recorded event. Omit it to retain the event
-   * indefinitely; zero disables event persistence.
+   * indefinitely; zero disables event persistence. Must be a finite,
+   * non-negative number.
    */
   ttlSeconds?: number;
 }

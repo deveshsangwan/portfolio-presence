@@ -91,7 +91,7 @@ export const presence = definePresence({
 store as its physical TTL. `cache.lastGoodTtlSeconds` is optional: omit it to
 keep the last-good fallback key indefinitely, or set it to expire that key too.
 For the played-event key, pass `ttlSeconds` to `playedEventSource`. A zero TTL
-means that key is not retained.
+means that key is not retained. TTLs must be finite, non-negative numbers.
 
 When using Redis or another persistent store, its `set` implementation must
 honor `PresenceStore`'s `ttlSeconds` option—for Redis, that means using the
