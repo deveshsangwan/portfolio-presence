@@ -9,6 +9,37 @@ export interface MemoryPresenceStore extends PresenceStore {
   clear: () => Promise<void>;
 }
 
+export function assertValidTtlSeconds(ttlSeconds: number | undefined) {
+  if (
+    ttlSeconds !== undefined &&
+    (!Number.isFinite(ttlSeconds) || ttlSeconds < 0)
+  ) {
+    throw new RangeError("ttlSeconds must be a finite number greater than or equal to 0.");
+  }
+}
+
+/**
+ * Persists a value while preserving the package-wide TTL semantics.
+ * A zero TTL means that the value must not be retained. This avoids sending an
+ * invalid zero-second expiry to stores such as Redis, while also clearing any
+ * value left by an earlier write.
+ */
+export async function setStoreValue<TValue>(
+  store: PresenceStore,
+  key: string,
+  value: TValue,
+  ttlSeconds: number | undefined
+) {
+  assertValidTtlSeconds(ttlSeconds);
+
+  if (ttlSeconds === 0) {
+    await store.delete(key);
+    return;
+  }
+
+  await store.set(key, value, ttlSeconds === undefined ? undefined : { ttlSeconds });
+}
+
 export function memoryStore(): MemoryPresenceStore {
   const entries = new Map<string, MemoryStoreEntry>();
 

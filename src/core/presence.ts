@@ -1,5 +1,5 @@
 import { getErrorMessage, PresenceError } from "./errors";
-import { memoryStore } from "./store";
+import { assertValidTtlSeconds, memoryStore, setStoreValue } from "./store";
 import type {
   BuildingFallback,
   BuildingPresenceCard,
@@ -36,6 +36,7 @@ interface SnapshotCacheEntry {
 interface NormalizedCache {
   key: string;
   lastGoodKey: string;
+  lastGoodTtlSeconds: number | undefined;
   store: PresenceStore;
   ttlSeconds: number;
 }
@@ -247,12 +248,22 @@ class Presence implements PresenceClient {
       return;
     }
 
-    await this.cache.store.set<SnapshotCacheEntry>(this.cache.key, {
-      expiresAt: new Date(now.getTime() + this.cache.ttlSeconds * 1000).toISOString(),
-      snapshot
-    });
+    await setStoreValue<SnapshotCacheEntry>(
+      this.cache.store,
+      this.cache.key,
+      {
+        expiresAt: new Date(now.getTime() + this.cache.ttlSeconds * 1000).toISOString(),
+        snapshot
+      },
+      this.cache.ttlSeconds
+    );
 
-    await this.cache.store.set<PresenceSnapshot>(this.cache.lastGoodKey, snapshot);
+    await setStoreValue<PresenceSnapshot>(
+      this.cache.store,
+      this.cache.lastGoodKey,
+      snapshot,
+      this.cache.lastGoodTtlSeconds
+    );
   }
 }
 
@@ -275,11 +286,18 @@ function normalizeCache(cache: false | PresenceCacheOptions | undefined) {
     return undefined;
   }
 
+  const ttlSeconds = cache?.ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS;
+  const lastGoodTtlSeconds = cache?.lastGoodTtlSeconds;
+
+  assertValidTtlSeconds(ttlSeconds);
+  assertValidTtlSeconds(lastGoodTtlSeconds);
+
   return {
     key: cache?.key ?? DEFAULT_CACHE_KEY,
     lastGoodKey: cache?.lastGoodKey ?? DEFAULT_LAST_GOOD_KEY,
+    lastGoodTtlSeconds,
     store: cache?.store ?? memoryStore(),
-    ttlSeconds: cache?.ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS
+    ttlSeconds
   } satisfies NormalizedCache;
 }
 

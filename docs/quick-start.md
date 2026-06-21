@@ -64,3 +64,8 @@ Render the snapshot however your portfolio wants:
 ```ts
 const snapshot = await presence.getSnapshot();
 ```
+
+`cache.ttlSeconds` is forwarded to the configured store. For Redis-backed
+stores, make sure the store translates it to the client's expiry option. Add
+`lastGoodTtlSeconds` when the last-good fallback should expire as well; omit it
+to retain the fallback indefinitely.

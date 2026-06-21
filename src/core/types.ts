@@ -156,7 +156,18 @@ export interface PresenceCacheOptions {
   key?: string;
   lastGoodKey?: string;
   store?: PresenceStore;
+  /**
+   * Expiry for the snapshot cache. A positive value is forwarded to the
+   * configured store; zero disables snapshot persistence. Must be a finite,
+   * non-negative number. Defaults to 60.
+   */
   ttlSeconds?: number;
+  /**
+   * Optional expiry for the last-good fallback snapshot. Omit it to retain
+   * last-good data indefinitely; zero disables last-good persistence. Must be
+   * a finite, non-negative number.
+   */
+  lastGoodTtlSeconds?: number;
 }
 
 export interface PresenceConfig {

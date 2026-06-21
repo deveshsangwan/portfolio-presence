@@ -87,6 +87,16 @@ export const presence = definePresence({
 });
 ```
 
+`cache.ttlSeconds` controls snapshot freshness and is passed to the configured
+store as its physical TTL. `cache.lastGoodTtlSeconds` is optional: omit it to
+keep the last-good fallback key indefinitely, or set it to expire that key too.
+For the played-event key, pass `ttlSeconds` to `playedEventSource`. A zero TTL
+means that key is not retained. TTLs must be finite, non-negative numbers.
+
+When using Redis or another persistent store, its `set` implementation must
+honor `PresenceStore`'s `ttlSeconds` option—for Redis, that means using the
+client's expiry option (for example, `EX`).
+
 `memoryStore()` is useful for local development, but it is not persistent across
 serverless cold starts. For production, implement `PresenceStore` with Redis,
 Upstash, Vercel KV, Postgres, or the storage your portfolio already uses.
