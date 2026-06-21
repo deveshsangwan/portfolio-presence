@@ -1,4 +1,5 @@
 import { PresenceError } from "../core/errors";
+import { setStoreValue } from "../core/store";
 import type {
   PlayedInput,
   PlayingPresenceCard,
@@ -13,6 +14,10 @@ export interface PlayedEventSourceOptions {
   label?: string;
   sourceName?: string;
   store: PresenceStore;
+  /**
+   * Optional expiry for the recorded event. Omit it to retain the event
+   * indefinitely; zero disables event persistence.
+   */
   ttlSeconds?: number;
 }
 
@@ -33,10 +38,11 @@ export function playedEventSource(
 
     async record(input: PlayedInput, context: PresenceContext) {
       const card = normalizePlayedInput(input, context.now, options);
-      await options.store.set<PlayingPresenceCard>(
+      await setStoreValue<PlayingPresenceCard>(
+        options.store,
         key,
         card,
-        options.ttlSeconds === undefined ? undefined : { ttlSeconds: options.ttlSeconds }
+        options.ttlSeconds
       );
       return card;
     }

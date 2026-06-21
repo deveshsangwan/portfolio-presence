@@ -7,9 +7,35 @@ import {
   playedEventSource,
   type BuildingPresenceCard,
   type FetchLike,
+  type PresenceStore,
   type PresenceSource
 } from "../src";
 import { createPlayedIngestHandler } from "../src/next";
+
+function recordingStore(): PresenceStore & {
+  deletedKeys: string[];
+  writes: Array<{ key: string; ttlSeconds: number | undefined }>;
+} {
+  const deletedKeys: string[] = [];
+  const writes: Array<{ key: string; ttlSeconds: number | undefined }> = [];
+
+  return {
+    deletedKeys,
+    writes,
+
+    async delete(key) {
+      deletedKeys.push(key);
+    },
+
+    async get() {
+      return null;
+    },
+
+    async set(key, _value, options) {
+      writes.push({ key, ttlSeconds: options?.ttlSeconds });
+    }
+  };
+}
 
 describe("definePresence", () => {
   it("returns cached snapshots within the cache ttl", async () => {
@@ -99,6 +125,63 @@ describe("definePresence", () => {
     });
     expect(snapshot.sources.building.status).toBe("stale");
   });
+
+  it("forwards snapshot and last-good TTLs to the store", async () => {
+    const store = recordingStore();
+    const presence = definePresence({
+      cache: {
+        key: "snapshot",
+        lastGoodKey: "snapshot:last-good",
+        lastGoodTtlSeconds: 3600,
+        store,
+        ttlSeconds: 60
+      }
+    });
+
+    await presence.getSnapshot();
+
+    expect(store.writes).toEqual([
+      { key: "snapshot", ttlSeconds: 60 },
+      { key: "snapshot:last-good", ttlSeconds: 3600 }
+    ]);
+  });
+
+  it("keeps last-good snapshots persistent when no TTL is configured", async () => {
+    const store = recordingStore();
+    const presence = definePresence({
+      cache: {
+        key: "snapshot",
+        lastGoodKey: "snapshot:last-good",
+        store,
+        ttlSeconds: 60
+      }
+    });
+
+    await presence.getSnapshot();
+
+    expect(store.writes).toEqual([
+      { key: "snapshot", ttlSeconds: 60 },
+      { key: "snapshot:last-good", ttlSeconds: undefined }
+    ]);
+  });
+
+  it("does not retain entries configured with a zero TTL", async () => {
+    const store = recordingStore();
+    const presence = definePresence({
+      cache: {
+        key: "snapshot",
+        lastGoodKey: "snapshot:last-good",
+        lastGoodTtlSeconds: 0,
+        store,
+        ttlSeconds: 0
+      }
+    });
+
+    await presence.getSnapshot();
+
+    expect(store.deletedKeys).toEqual(["snapshot", "snapshot:last-good"]);
+    expect(store.writes).toEqual([]);
+  });
 });
 
 describe("played event ingestion", () => {
@@ -146,6 +229,39 @@ describe("played event ingestion", () => {
       platform: "ios",
       title: "MCOC"
     });
+  });
+
+  it("forwards a played-event TTL to the store", async () => {
+    const store = recordingStore();
+    const source = playedEventSource({ store, ttlSeconds: 300 });
+
+    await source.record(
+      { title: "MCOC" },
+      {
+        fetch,
+        now: new Date("2026-06-13T10:00:00.000Z")
+      }
+    );
+
+    expect(store.writes).toEqual([
+      { key: "portfolio-presence:playing:last", ttlSeconds: 300 }
+    ]);
+  });
+
+  it("does not retain a played event configured with a zero TTL", async () => {
+    const store = recordingStore();
+    const source = playedEventSource({ store, ttlSeconds: 0 });
+
+    await source.record(
+      { title: "MCOC" },
+      {
+        fetch,
+        now: new Date("2026-06-13T10:00:00.000Z")
+      }
+    );
+
+    expect(store.deletedKeys).toEqual(["portfolio-presence:playing:last"]);
+    expect(store.writes).toEqual([]);
   });
 });
 
