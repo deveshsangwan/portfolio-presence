@@ -1,0 +1,31 @@
+README.md
+  s_52955ad661ea4e::t_a29228b8e409f6 94
+src/core/store.ts
+  s_52955ad661ea4e::t_a29228b8e409f6 12-20,33-34
+src/core/presence.ts
+  s_52955ad661ea4e::t_a29228b8e409f6 2,289-294,298,300
+src/core/types.ts
+  s_52955ad661ea4e::t_a29228b8e409f6 161-162,167-168
+src/sources/played.ts
+  s_52955ad661ea4e::t_a29228b8e409f6 19-20
+docs/storage.md
+  s_52955ad661ea4e::t_a29228b8e409f6 31
+test/presence.test.ts
+  s_52955ad661ea4e::t_a29228b8e409f6 13,41-55,201-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "665735e36955f9c44aa13d1d5f0d329f69177400",
+  "prompts": {},
+  "sessions": {
+    "s_52955ad661ea4e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ee9e9-d267-7342-a39e-14ef92a22850",
+        "model": "gpt-5.5"
+      },
+      "human_author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
