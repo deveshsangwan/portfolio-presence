@@ -1,0 +1,14 @@
+package.json
+  h_9c147e6399b95b 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "7aad2c50bccc13b928ba38ec63a4082a02b40b6a",
+  "prompts": {},
+  "humans": {
+    "h_9c147e6399b95b": {
+      "author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
