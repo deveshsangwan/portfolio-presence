@@ -1,0 +1,41 @@
+docs/quick-start.md
+  s_52955ad661ea4e::t_a1300fb451a85a 67-71
+src/core/store.ts
+  s_52955ad661ea4e::t_a7b7ac1e2cebac 12-31
+docs/storage.md
+  s_52955ad661ea4e::t_a1300fb451a85a 21-36
+src/core/presence.ts
+  s_52955ad661ea4e::t_a7b7ac1e2cebac 2,39,251-266,292
+README.md
+  s_52955ad661ea4e::t_a1300fb451a85a 90-99
+test/presence.test.ts
+  s_52955ad661ea4e::t_ab47759f8d5e3a 10,15-39,128-184,233-265
+src/core/types.ts
+  s_52955ad661ea4e::t_a1300fb451a85a 159-162,164-168
+docs/concepts.md
+  s_52955ad661ea4e::t_a1300fb451a85a 26-29
+src/sources/played.ts
+  s_52955ad661ea4e::t_a1300fb451a85a 17-20
+  s_52955ad661ea4e::t_a7b7ac1e2cebac 2,41-42,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "79c504ca4ea5be584cb5190003b4cfc7d44be692",
+  "prompts": {},
+  "humans": {
+    "h_9c147e6399b95b": {
+      "author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_52955ad661ea4e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ee9e9-d267-7342-a39e-14ef92a22850",
+        "model": "gpt-5.5"
+      },
+      "human_author": "deveshsangwan <dev.sangwan2001@gmail.com>"
+    }
+  }
+}
