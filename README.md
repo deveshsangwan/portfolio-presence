@@ -8,7 +8,7 @@ Full documentation: https://deveshsangwan.github.io/portfolio-presence/
 public JSON snapshot you can render however you want. It is designed for
 portfolio cards like:
 
-- Building: latest allowlisted GitHub repo
+- Building: latest selected GitHub repo
 - Playing: latest game recorded by an iOS Shortcut
 - Listening to: Last.fm recent track
 
@@ -57,12 +57,10 @@ export const presence = definePresence({
     building: githubSource({
       username: "deveshsangwan",
       token: process.env.GITHUB_TOKEN,
-      repos: [
-        {
-          name: "investment-sync",
-          label: "Investment Sync"
-        }
-      ]
+      mode: "public",
+      excludeRepos: ["old-demo", "test-repo"],
+      includeForks: false,
+      includeArchived: false
     }),
     playing: playedEventSource({
       store
@@ -192,8 +190,8 @@ export function PresencePills() {
 
 ## Privacy Defaults
 
-- GitHub uses an explicit repo allowlist.
-- Private GitHub repos are skipped unless `allowPrivate: true`.
+- GitHub can use public owner repos or an explicit repo allowlist.
+- Private GitHub repos are skipped unless `allowPrivate: true` is set in allowlist mode.
 - Private repo names are not exposed by default.
 - Last.fm supports blocked artists and blocked tracks.
 - Played ingestion requires a secret in the Next.js helper.

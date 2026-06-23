@@ -296,6 +296,25 @@ describe("played event ingestion", () => {
 });
 
 describe("githubSource", () => {
+  it("throws a PresenceError when allowlist repos are missing at runtime", () => {
+    let error: unknown;
+
+    try {
+      githubSource({
+        mode: "allowlist",
+        username: "devesh"
+      } as Parameters<typeof githubSource>[0]);
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toMatchObject({
+      code: "github_repos_required",
+      message: "GitHub source requires at least one allowlisted repo.",
+      status: 400
+    });
+  });
+
   it("chooses the latest public allowlisted repo and avoids private repo names by default", async () => {
     const fetchMock: FetchLike = async (input) => {
       const url = String(input);
@@ -333,6 +352,227 @@ describe("githubSource", () => {
       href: "https://github.com/devesh/investment-sync",
       repo: "devesh/investment-sync",
       title: "Investment Sync"
+    });
+  });
+
+  it("chooses the latest public repo owned by the user in public mode", async () => {
+    const fetchMock: FetchLike = async (input) => {
+      expect(String(input)).toBe(
+        "https://api.github.com/users/devesh/repos?type=owner&sort=pushed&direction=desc&per_page=100&page=1"
+      );
+
+      return Response.json([
+        {
+          description: "Presence snapshots",
+          full_name: "devesh/portfolio-presence",
+          html_url: "https://github.com/devesh/portfolio-presence",
+          name: "portfolio-presence",
+          private: false,
+          pushed_at: "2026-06-13T12:00:00.000Z"
+        }
+      ]);
+    };
+
+    const source = githubSource({
+      fetch: fetchMock,
+      mode: "public",
+      username: "devesh"
+    });
+
+    const card = await source.getCard({
+      fetch: fetchMock,
+      now: new Date("2026-06-13T12:30:00.000Z")
+    });
+
+    expect(card).toMatchObject({
+      description: "Presence snapshots",
+      href: "https://github.com/devesh/portfolio-presence",
+      repo: "devesh/portfolio-presence",
+      title: "Portfolio Presence",
+      updatedAt: "2026-06-13T12:00:00.000Z"
+    });
+  });
+
+  it("excludes public repos by short name and full name case-insensitively", async () => {
+    const fetchMock: FetchLike = async () =>
+      Response.json([
+        {
+          full_name: "devesh/old-demo",
+          html_url: "https://github.com/devesh/old-demo",
+          name: "old-demo",
+          private: false,
+          pushed_at: "2026-06-13T12:00:00.000Z"
+        },
+        {
+          full_name: "devesh/test-repo",
+          html_url: "https://github.com/devesh/test-repo",
+          name: "test-repo",
+          private: false,
+          pushed_at: "2026-06-13T11:00:00.000Z"
+        },
+        {
+          full_name: "devesh/investment-sync",
+          html_url: "https://github.com/devesh/investment-sync",
+          name: "investment-sync",
+          private: false,
+          pushed_at: "2026-06-13T10:00:00.000Z"
+        }
+      ]);
+
+    const source = githubSource({
+      excludeRepos: ["OLD-DEMO", "Devesh/Test-Repo"],
+      fetch: fetchMock,
+      mode: "public",
+      username: "devesh"
+    });
+
+    const card = await source.getCard({
+      fetch: fetchMock,
+      now: new Date("2026-06-13T12:30:00.000Z")
+    });
+
+    expect(card).toMatchObject({
+      repo: "devesh/investment-sync",
+      title: "Investment Sync"
+    });
+  });
+
+  it("filters forks and archived repos by default in public mode", async () => {
+    const fetchMock: FetchLike = async () =>
+      Response.json([
+        {
+          fork: true,
+          full_name: "devesh/forked-project",
+          name: "forked-project",
+          private: false,
+          pushed_at: "2026-06-13T12:00:00.000Z"
+        },
+        {
+          archived: true,
+          full_name: "devesh/archived-project",
+          name: "archived-project",
+          private: false,
+          pushed_at: "2026-06-13T11:00:00.000Z"
+        },
+        {
+          full_name: "devesh/current-project",
+          name: "current-project",
+          private: false,
+          pushed_at: "2026-06-13T10:00:00.000Z"
+        }
+      ]);
+
+    const source = githubSource({
+      fetch: fetchMock,
+      mode: "public",
+      username: "devesh"
+    });
+
+    const card = await source.getCard({
+      fetch: fetchMock,
+      now: new Date("2026-06-13T12:30:00.000Z")
+    });
+
+    expect(card).toMatchObject({
+      repo: "devesh/current-project",
+      title: "Current Project"
+    });
+  });
+
+  it("can include forks and archived repos in public mode", async () => {
+    const fetchMock: FetchLike = async () =>
+      Response.json([
+        {
+          archived: true,
+          fork: true,
+          full_name: "devesh/old-fork",
+          html_url: "https://github.com/devesh/old-fork",
+          name: "old-fork",
+          private: false,
+          pushed_at: "2026-06-13T12:00:00.000Z"
+        },
+        {
+          full_name: "devesh/current-project",
+          name: "current-project",
+          private: false,
+          pushed_at: "2026-06-13T10:00:00.000Z"
+        }
+      ]);
+
+    const source = githubSource({
+      fetch: fetchMock,
+      includeArchived: true,
+      includeForks: true,
+      mode: "public",
+      username: "devesh"
+    });
+
+    const card = await source.getCard({
+      fetch: fetchMock,
+      now: new Date("2026-06-13T12:30:00.000Z")
+    });
+
+    expect(card).toMatchObject({
+      href: "https://github.com/devesh/old-fork",
+      repo: "devesh/old-fork",
+      title: "Old Fork"
+    });
+  });
+
+  it("paginates public repos until it finds a visible repo", async () => {
+    const pages: string[] = [];
+    const fetchMock: FetchLike = async (input) => {
+      const url = String(input);
+      pages.push(url);
+
+      if (url.endsWith("page=1")) {
+        return Response.json(
+          [
+            {
+              fork: true,
+              full_name: "devesh/forked-project",
+              name: "forked-project",
+              private: false,
+              pushed_at: "2026-06-13T12:00:00.000Z"
+            }
+          ],
+          {
+            headers: {
+              Link: '<https://api.github.com/users/devesh/repos?page=2>; rel="next"'
+            }
+          }
+        );
+      }
+
+      return Response.json([
+        {
+          full_name: "devesh/next-page-project",
+          html_url: "https://github.com/devesh/next-page-project",
+          name: "next-page-project",
+          private: false,
+          pushed_at: "2026-06-13T10:00:00.000Z"
+        }
+      ]);
+    };
+
+    const source = githubSource({
+      fetch: fetchMock,
+      mode: "public",
+      username: "devesh"
+    });
+
+    const card = await source.getCard({
+      fetch: fetchMock,
+      now: new Date("2026-06-13T12:30:00.000Z")
+    });
+
+    expect(pages).toEqual([
+      "https://api.github.com/users/devesh/repos?type=owner&sort=pushed&direction=desc&per_page=100&page=1",
+      "https://api.github.com/users/devesh/repos?type=owner&sort=pushed&direction=desc&per_page=100&page=2"
+    ]);
+    expect(card).toMatchObject({
+      repo: "devesh/next-page-project",
+      title: "Next Page Project"
     });
   });
 });
