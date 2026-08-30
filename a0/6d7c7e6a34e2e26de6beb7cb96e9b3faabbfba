@@ -1,0 +1,28 @@
+docs/privacy.md
+  s_a7d3dde769eaba::t_169b11c877827c 13
+src/sources/wakatime.ts
+  s_a7d3dde769eaba::t_169b11c877827c 38-39,44,55,75,82,112,116,127,152,154,168-223,245-256,264,274,280-292,296-297,299-302,305,311-328,334
+  s_a7d3dde769eaba::t_3e4a1059c41b34 298
+docs/providers/wakatime.md
+  s_a7d3dde769eaba::t_169b11c877827c 34-35,42
+test/wakatime.test.ts
+  s_a7d3dde769eaba::t_4af4f34316531d 89-149,199-202,204-222,265-289
+  s_a7d3dde769eaba::t_3e4a1059c41b34 203
+  s_a7d3dde769eaba::t_03f7675dd95286 290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "a06d7c7e6a34e2e26de6beb7cb96e9b3faabbfba",
+  "prompts": {},
+  "sessions": {
+    "s_a7d3dde769eaba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05453-1583-7102-809e-b9a7078ddad3",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Devesh Sangwan <deveshsangwan@PAISAMAC156.local>"
+    }
+  }
+}
