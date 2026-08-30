@@ -1,0 +1,44 @@
+test/presence.test.ts
+  s_a7d3dde769eaba::t_a859207ad2e1b0 23,32,35-36,39,41,420-466
+  s_a7d3dde769eaba::t_6635eb1bb3a9ed 46-58,478-480,500-502,523-525
+  s_a7d3dde769eaba::t_7272dcf7336f94 188
+  s_a7d3dde769eaba::t_f83450cdd40bee 189,196-198,201-204,210-219,311,317-318,330,342-344,355-365
+  s_a7d3dde769eaba::t_31debcb727f98e 10,227-229,231-236,242-252,254-283,285-287,289-307
+  s_a7d3dde769eaba::t_c5356eec0511b1 230,237-241,284,288
+  s_a7d3dde769eaba::t_bfd740d38ab73a 253
+  s_a7d3dde769eaba::t_3bda89472e1028 11,374-419
+  s_a7d3dde769eaba::t_1c0843b477ada4 163-187,190-195,199-200,205-209,220-226,308-309
+  s_a7d3dde769eaba::t_f22da41b2fb86e 310,312-316,319-329,331-341,345-354,366-373,467-468
+docs/quick-start.md
+  s_a7d3dde769eaba::t_e20e9004e6a084 73-74
+README.md
+  s_a7d3dde769eaba::t_e20e9004e6a084 90-92
+docs/concepts.md
+  s_a7d3dde769eaba::t_bfd740d38ab73a 36
+  s_a7d3dde769eaba::t_e20e9004e6a084 31,34-35
+docs/storage.md
+  s_a7d3dde769eaba::t_e20e9004e6a084 27-28,36-37
+src/core/types.ts
+  s_a7d3dde769eaba::t_e20e9004e6a084 166-168
+src/core/presence.ts
+  s_a7d3dde769eaba::t_fdc9dd85c4279c 266,268-270
+  s_a7d3dde769eaba::t_346cf039d55611 89,246-250,265,267,274,288-330
+  s_a7d3dde769eaba::t_f01411f996b201 205
+  s_a7d3dde769eaba::t_41f120835c208e 331
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "4fdac6cdf19e77010afdf9f95e7efd57bc266ca2",
+  "prompts": {},
+  "sessions": {
+    "s_a7d3dde769eaba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05453-1583-7102-809e-b9a7078ddad3",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Devesh Sangwan <deveshsangwan@PAISAMAC156.local>"
+    }
+  }
+}
