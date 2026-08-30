@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useLayoutEffect } from "react";
+import { act, createElement, StrictMode, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PresenceSnapshot } from "../src";
@@ -56,6 +56,10 @@ interface HookRender {
   unmount: () => Promise<void>;
 }
 
+interface HookRenderOptions {
+  strictMode?: boolean;
+}
+
 interface Deferred<TValue> {
   promise: Promise<TValue>;
   resolve: (value: TValue) => void;
@@ -91,7 +95,10 @@ function HookProbe({
   );
 }
 
-async function renderHook(props: HookProbeProps): Promise<HookRender> {
+async function renderHook(
+  props: HookProbeProps,
+  renderOptions: HookRenderOptions = {}
+): Promise<HookRender> {
   const container = document.createElement("div");
   const root = createRoot(container);
   document.body.append(container);
@@ -99,7 +106,12 @@ async function renderHook(props: HookProbeProps): Promise<HookRender> {
 
   const rerender = async (nextProps: HookProbeProps) => {
     await act(async () => {
-      root.render(createElement(HookProbe, nextProps));
+      const probe = createElement(HookProbe, nextProps);
+      root.render(
+        renderOptions.strictMode
+          ? createElement(StrictMode, null, probe)
+          : probe
+      );
     });
   };
 
@@ -215,6 +227,44 @@ describe("usePresence", () => {
     });
 
     expect(fetcher).toHaveBeenCalledOnce();
+    expect(readHookState(rendered.container).generatedAt).toBe(
+      refreshedSnapshot.generatedAt
+    );
+  });
+
+  it("keeps layout refresh ready during Strict Mode effect replay", async () => {
+    const firstResponse = createDeferred<Response>();
+    const replayResponse = createDeferred<Response>();
+    const requestSignals: Array<AbortSignal | null | undefined> = [];
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((_input, init) => {
+      requestSignals.push(init?.signal);
+      return requestSignals.length === 1
+        ? firstResponse.promise
+        : replayResponse.promise;
+    });
+    let hookResult: UsePresenceResult | undefined;
+    const rendered = await renderHook(
+      {
+        onRender: (result) => {
+          hookResult = result;
+        },
+        options: { fetcher, initialSnapshot },
+        refreshOnLayout: true
+      },
+      { strictMode: true }
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(requestSignals[0]?.aborted).toBe(true);
+    expect(requestSignals[1]?.aborted).toBe(false);
+
+    const replayRequest = requireHookResult(hookResult).refresh();
+    await act(async () => {
+      replayResponse.resolve(createSnapshotResponse(refreshedSnapshot));
+      await replayRequest;
+      firstResponse.resolve(createSnapshotResponse(initialSnapshot));
+      await Promise.resolve();
+    });
     expect(readHookState(rendered.container).generatedAt).toBe(
       refreshedSnapshot.generatedAt
     );
@@ -422,6 +472,75 @@ describe("usePresence", () => {
     });
     expect(readHookState(rendered.container).generatedAt).toBe(
       refreshedSnapshot.generatedAt
+    );
+  });
+
+  it("drops queued visibility work when the endpoint changes", async () => {
+    let visibilityState: DocumentVisibilityState = "visible";
+    vi.spyOn(document, "visibilityState", "get").mockImplementation(
+      () => visibilityState
+    );
+    const firstResponse = createDeferred<Response>();
+    const secondResponse = createDeferred<Response>();
+    let firstEndpointCalls = 0;
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
+      if (input === "/first") {
+        firstEndpointCalls += 1;
+        return firstEndpointCalls === 1
+          ? firstResponse.promise
+          : Promise.resolve(createSnapshotResponse(initialSnapshot));
+      }
+
+      return secondResponse.promise;
+    });
+    let hookResult: UsePresenceResult | undefined;
+    const onRender = (result: UsePresenceResult) => {
+      hookResult = result;
+    };
+    const options = { fetcher, initialSnapshot };
+    const rendered = await renderHook({
+      endpoint: "/first",
+      onRender,
+      options
+    });
+    let firstRequest: Promise<void> | undefined;
+    await act(async () => {
+      firstRequest = requireHookResult(hookResult).refresh();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      visibilityState = "hidden";
+      document.dispatchEvent(new Event("visibilitychange"));
+      visibilityState = "visible";
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await rendered.rerender({
+      endpoint: "/second",
+      onRender,
+      options
+    });
+
+    expect(fetcher.mock.calls.map(([input]) => input)).toEqual([
+      "/first",
+      "/second"
+    ]);
+
+    const secondRequest = requireHookResult(hookResult).refresh();
+    await act(async () => {
+      secondResponse.resolve(createSnapshotResponse(postVisibleSnapshot));
+      await secondRequest;
+    });
+
+    await act(async () => {
+      firstResponse.resolve(createSnapshotResponse(initialSnapshot));
+      await firstRequest;
+      await Promise.resolve();
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(readHookState(rendered.container).generatedAt).toBe(
+      postVisibleSnapshot.generatedAt
     );
   });
 

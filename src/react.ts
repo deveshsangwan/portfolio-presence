@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from "react";
 import type { PresenceSnapshot } from "./core/types";
 
 export type PresenceHookStatus = "idle" | "loading" | "success" | "error";
@@ -34,7 +40,7 @@ export function usePresence(
     options.initialSnapshot ? "success" : "idle"
   );
   const activeRequest = useRef<ActivePresenceRequest | null>(null);
-  const isMounted = useRef(true);
+  const isMounted = useRef(false);
   const mountPolicy = useRef({
     hasInitialSnapshot: options.initialSnapshot !== undefined,
     revalidateOnMount: options.revalidateOnMount === true
@@ -150,7 +156,7 @@ export function usePresence(
     });
   }, [refresh]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     isMounted.current = true;
 
     return () => {
@@ -172,6 +178,7 @@ export function usePresence(
     };
 
     if (hasRequestConfigChanged) {
+      pendingLifecycleRefresh.current = false;
       cancelActiveRequest();
       void refresh();
       return;
