@@ -38,10 +38,16 @@ const refreshedSnapshot: PresenceSnapshot = {
   generatedAt: "2026-08-31T10:05:00.000Z"
 };
 
+const postVisibleSnapshot: PresenceSnapshot = {
+  ...initialSnapshot,
+  generatedAt: "2026-08-31T10:10:00.000Z"
+};
+
 interface HookProbeProps {
   endpoint?: string;
   onRender?: (result: UsePresenceResult) => void;
   options?: UsePresenceOptions;
+  refreshOnLayout?: boolean;
 }
 
 interface HookRender {
@@ -60,13 +66,20 @@ const mountedRoots = new Set<Root>();
 function HookProbe({
   endpoint = "/api/presence",
   onRender,
-  options
+  options,
+  refreshOnLayout
 }: HookProbeProps) {
   const result = usePresence(endpoint, options);
 
   useLayoutEffect(() => {
     onRender?.(result);
   }, [onRender, result]);
+
+  useLayoutEffect(() => {
+    if (refreshOnLayout) {
+      void result.refresh();
+    }
+  }, [refreshOnLayout, result.refresh]);
 
   return createElement(
     "output",
@@ -192,6 +205,21 @@ describe("usePresence", () => {
     });
   });
 
+  it("lets consumers refresh during their layout effect", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      createSnapshotResponse(refreshedSnapshot)
+    );
+    const rendered = await renderHook({
+      options: { fetcher, initialSnapshot },
+      refreshOnLayout: true
+    });
+
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(readHookState(rendered.container).generatedAt).toBe(
+      refreshedSnapshot.generatedAt
+    );
+  });
+
   it("fetches on mount when no server snapshot is available", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       createSnapshotResponse(initialSnapshot)
@@ -253,6 +281,56 @@ describe("usePresence", () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it("refreshes after visibility returns when earlier work is still active", async () => {
+    let visibilityState: DocumentVisibilityState = "visible";
+    vi.spyOn(document, "visibilityState", "get").mockImplementation(
+      () => visibilityState
+    );
+    const preHideResponse = createDeferred<Response>();
+    const postVisibleResponse = createDeferred<Response>();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockReturnValueOnce(preHideResponse.promise)
+      .mockReturnValueOnce(postVisibleResponse.promise);
+    let hookResult: UsePresenceResult | undefined;
+    const rendered = await renderHook({
+      onRender: (result) => {
+        hookResult = result;
+      },
+      options: { fetcher, initialSnapshot }
+    });
+    let preHideRequest: Promise<void> | undefined;
+    await act(async () => {
+      preHideRequest = requireHookResult(hookResult).refresh();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      visibilityState = "hidden";
+      document.dispatchEvent(new Event("visibilitychange"));
+      visibilityState = "visible";
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(fetcher).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      preHideResponse.resolve(createSnapshotResponse(refreshedSnapshot));
+      await preHideRequest;
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    const postVisibleRequest = requireHookResult(hookResult).refresh();
+    await act(async () => {
+      postVisibleResponse.resolve(createSnapshotResponse(postVisibleSnapshot));
+      await postVisibleRequest;
+    });
+    expect(readHookState(rendered.container).generatedAt).toBe(
+      postVisibleSnapshot.generatedAt
+    );
   });
 
   it("refreshes when the window regains focus", async () => {
@@ -375,8 +453,12 @@ describe("usePresence", () => {
     });
   });
 
-  it("aborts active work and removes lifecycle work on unmount", async () => {
+  it("aborts active work and removes matching lifecycle listeners on unmount", async () => {
     vi.useFakeTimers();
+    const addDocumentListener = vi.spyOn(document, "addEventListener");
+    const removeDocumentListener = vi.spyOn(document, "removeEventListener");
+    const addWindowListener = vi.spyOn(window, "addEventListener");
+    const removeWindowListener = vi.spyOn(window, "removeEventListener");
     const response = createDeferred<Response>();
     let requestSignal: AbortSignal | null | undefined;
     const fetcher = vi.fn<typeof fetch>().mockImplementation((_input, init) => {
@@ -395,11 +477,26 @@ describe("usePresence", () => {
       }
     });
     const request = requireHookResult(hookResult).refresh();
+    const focusListener = addWindowListener.mock.calls.find(
+      ([eventType]) => eventType === "focus"
+    )?.[1];
+    const visibilityListener = addDocumentListener.mock.calls.find(
+      ([eventType]) => eventType === "visibilitychange"
+    )?.[1];
+
+    if (!focusListener || !visibilityListener) {
+      throw new Error("The hook did not register its lifecycle listeners.");
+    }
 
     await rendered.unmount();
 
     expect(requestSignal?.aborted).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
+    expect(removeWindowListener).toHaveBeenCalledWith("focus", focusListener);
+    expect(removeDocumentListener).toHaveBeenCalledWith(
+      "visibilitychange",
+      visibilityListener
+    );
 
     await act(async () => {
       window.dispatchEvent(new Event("focus"));

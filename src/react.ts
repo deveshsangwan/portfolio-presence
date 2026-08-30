@@ -34,11 +34,12 @@ export function usePresence(
     options.initialSnapshot ? "success" : "idle"
   );
   const activeRequest = useRef<ActivePresenceRequest | null>(null);
-  const isMounted = useRef(false);
+  const isMounted = useRef(true);
   const mountPolicy = useRef({
     hasInitialSnapshot: options.initialSnapshot !== undefined,
     revalidateOnMount: options.revalidateOnMount === true
   });
+  const pendingLifecycleRefresh = useRef(false);
   const requestConfig = useRef({
     endpoint,
     fetcher: options.fetcher
@@ -123,11 +124,38 @@ export function usePresence(
     return promise;
   }, [endpoint, options.fetcher]);
 
+  const queueLifecycleRefresh = useCallback(() => {
+    const request = activeRequest.current;
+
+    if (!request) {
+      void refresh();
+      return;
+    }
+
+    if (pendingLifecycleRefresh.current) {
+      return;
+    }
+
+    pendingLifecycleRefresh.current = true;
+    void request.promise.then(() => {
+      if (!pendingLifecycleRefresh.current) {
+        return;
+      }
+
+      pendingLifecycleRefresh.current = false;
+
+      if (isMounted.current) {
+        void refresh();
+      }
+    });
+  }, [refresh]);
+
   useEffect(() => {
     isMounted.current = true;
 
     return () => {
       isMounted.current = false;
+      pendingLifecycleRefresh.current = false;
       cancelActiveRequest();
     };
   }, [cancelActiveRequest]);
@@ -159,6 +187,7 @@ export function usePresence(
 
   useEffect(() => {
     let interval: number | undefined;
+    let wasPageHidden = document.visibilityState === "hidden";
 
     const stopInterval = () => {
       if (interval === undefined) {
@@ -188,11 +217,18 @@ export function usePresence(
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
+        wasPageHidden = true;
         stopInterval();
         return;
       }
 
-      void refresh();
+      if (wasPageHidden) {
+        wasPageHidden = false;
+        queueLifecycleRefresh();
+      } else {
+        void refresh();
+      }
+
       startInterval();
     };
 
@@ -213,7 +249,7 @@ export function usePresence(
       window.removeEventListener("focus", handleFocus);
       stopInterval();
     };
-  }, [options.refreshIntervalMs, refresh]);
+  }, [options.refreshIntervalMs, queueLifecycleRefresh, refresh]);
 
   return {
     error,
