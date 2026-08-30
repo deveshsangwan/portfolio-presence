@@ -14,7 +14,7 @@ export default async function Page() {
           </li>
         ))}
       </ul>
-      <PresenceClient />
+      <PresenceClient initialSnapshot={snapshot} />
     </main>
   );
 }
