@@ -1,0 +1,54 @@
+docs/frameworks/react.md
+  s_a7d3dde769eaba::t_ae7133e9ea289a 8,11-19,33-41
+src/react.ts
+  s_a7d3dde769eaba::t_f9b914e85fe290 8,29-31,33-35,195
+  s_a7d3dde769eaba::t_bde9c640219fcf 77,105-110,117,119
+  s_a7d3dde769eaba::t_9495a1497a22b9 10
+  s_a7d3dde769eaba::t_6b05293d2afd77 37-45,48-59,61-64,127,129-149,152-155,157-158,160,180-184
+  s_a7d3dde769eaba::t_b0b058f227a637 161-166,169-179,185-194,196-197,207,209-212,214
+  s_a7d3dde769eaba::t_f7bfae15a5d2df 20-24,36,47,60,65-67,78-82,88-92,98-100,102-104,111-115,121-123
+  s_a7d3dde769eaba::t_2332977b00ab5c 46,70-72,84-86,93-97,101
+  s_a7d3dde769eaba::t_b848a6e033dca2 199-205,208,213
+  s_a7d3dde769eaba::t_92a0baade50e91 120
+  s_a7d3dde769eaba::t_db479b1055f95e 159
+  s_a7d3dde769eaba::t_df95fddfaf03d3 198
+  s_a7d3dde769eaba::t_931661a2c0324b 206
+examples/next-basic/app/page.tsx
+  s_a7d3dde769eaba::t_ae7133e9ea289a 17
+examples/next-basic/app/presence-client.tsx
+  s_a7d3dde769eaba::t_ae7133e9ea289a 3,6-13
+test/react.test.ts
+  s_a7d3dde769eaba::t_0a3d0f4581c6f8 53-57,118-120,128,130,132-146,263-269,271-287,289-290,292,296-297,299-300
+  s_a7d3dde769eaba::t_3a1b3f4d0f9346 1-2,4-35,41-52,58-65,70-117,131,147-173,193,414
+  s_a7d3dde769eaba::t_ac1bdaf6e240e8 194-196,198-208
+  s_a7d3dde769eaba::t_210c0ed84f5eef 218-220
+  s_a7d3dde769eaba::t_c71f5d1358aaf8 3,66-69
+  s_a7d3dde769eaba::t_32933a76290bb7 302-333,335-341,343-348
+  s_a7d3dde769eaba::t_d9faf8fab9adef 349,378-407,409-413
+  s_a7d3dde769eaba::t_e9df675763b799 129
+  s_a7d3dde769eaba::t_5ce950b3d0ebd2 350-355,357-377
+  s_a7d3dde769eaba::t_4a19352f3b39fb 209-215,221-256
+  s_a7d3dde769eaba::t_aa917ff788104d 257-259,261-262,270,288,291,293-295,301
+  s_a7d3dde769eaba::t_3a25262472137e 121-127,178,197,216-217,260,298,334,342,356,408
+  s_a7d3dde769eaba::t_41b51a50352bd5 36-40,174-177,179-192
+package.json
+  s_a7d3dde769eaba::t_5ce9343eab8648 77
+pnpm-lock.yaml
+  s_a7d3dde769eaba::t_60b65d2fe06ca0 20-22,46,151-153,171-198,1207-1210,1284-1287,1291-1294,1304-1306,1321-1324,1381-1384,1388-1402,1411-1419,1505-1507,1577-1579,1594-1596,1654-1657,1697-1699,1704-1710,1778-1780,1809-1823,2023-2043,2049-2067,2185-2192,2206-2225,2938-2939,3002-3006,3009-3013,3018-3019,3030-3031,3136-3139,3142-3161,3166-3192,3248-3249,3332-3333,3346-3349,3395-3396,3472-3473,3478-3483,3572-3573,3597-3610,3757,3781,3795-3811,3817-3822
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "348c7203fb68b0b5de0a4466b73a11ab928b5b99",
+  "prompts": {},
+  "sessions": {
+    "s_a7d3dde769eaba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05453-1583-7102-809e-b9a7078ddad3",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Devesh Sangwan <deveshsangwan@PAISAMAC156.local>"
+    }
+  }
+}
