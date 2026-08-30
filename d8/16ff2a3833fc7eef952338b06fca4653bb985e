@@ -1,0 +1,27 @@
+test/react.test.ts
+  s_a7d3dde769eaba::t_dc605eca2294bd 304-308,310-315
+  s_a7d3dde769eaba::t_dec4fe7865c859 50,69-70,78-83,208-220
+  s_a7d3dde769eaba::t_bb3f87b9b41d1b 456,458-461,480-489,495-499
+  s_a7d3dde769eaba::t_0d621dff2743f7 41-45,286-303,309,316-333
+  s_a7d3dde769eaba::t_954189c6d3bdf0 221-222
+  s_a7d3dde769eaba::t_71229dcdbfb25f 334-335
+src/react.ts
+  s_a7d3dde769eaba::t_5467110d729749 42,127-152,158,190,220,225-231,252
+  s_a7d3dde769eaba::t_1520d6cc9839ce 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "d816ff2a3833fc7eef952338b06fca4653bb985e",
+  "prompts": {},
+  "sessions": {
+    "s_a7d3dde769eaba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05453-1583-7102-809e-b9a7078ddad3",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Devesh Sangwan <deveshsangwan@PAISAMAC156.local>"
+    }
+  }
+}
