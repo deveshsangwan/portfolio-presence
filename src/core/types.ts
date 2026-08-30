@@ -163,9 +163,9 @@ export interface PresenceCacheOptions {
    */
   ttlSeconds?: number;
   /**
-   * Optional expiry for the last-good fallback snapshot. Omit it to retain
-   * last-good data indefinitely; zero disables last-good persistence. Must be
-   * a finite, non-negative number.
+   * Optional expiry for last-good recovery data. Omit it to retain recovery
+   * data indefinitely; zero disables last-good persistence. Must be a finite,
+   * non-negative number.
    */
   lastGoodTtlSeconds?: number;
 }

@@ -87,7 +87,9 @@ export const presence = definePresence({
 
 `cache.ttlSeconds` controls snapshot freshness and is passed to the configured
 store as its physical TTL. `cache.lastGoodTtlSeconds` is optional: omit it to
-keep the last-good fallback key indefinitely, or set it to expire that key too.
+keep last-good recovery data indefinitely, or set it to expire that data.
+Only fresh source cards update recovery data. Each card kind remains available
+through empty, fallback, stale, error, and disabled source outcomes.
 For the played-event key, pass `ttlSeconds` to `playedEventSource`. A zero TTL
 means that key is not retained. TTLs must be finite, non-negative numbers.
 

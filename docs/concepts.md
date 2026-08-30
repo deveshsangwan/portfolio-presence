@@ -28,7 +28,9 @@ the application's store adapter applies the equivalent expiry in its backend.
 Snapshot cache entries also carry an `expiresAt` timestamp so they stay fresh
 even when a backend cannot enforce TTLs.
 
-## Fallbacks And Stale Data
+## Fallbacks and stale data
 
 Fallbacks keep your page populated when a source is empty. Last-good stale data
-keeps your page stable when a provider temporarily fails.
+keeps your page stable when a provider temporarily fails. Only fresh source
+cards update recovery data. The package retains each card kind independently
+across empty, fallback, stale, error, and disabled outcomes.

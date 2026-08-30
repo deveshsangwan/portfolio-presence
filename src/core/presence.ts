@@ -86,7 +86,7 @@ class Presence implements PresenceClient {
       sources: states
     };
 
-    await this.writeCache(snapshot, now);
+    await this.writeCache(snapshot, lastGood, now);
     return snapshot;
   }
 
@@ -202,7 +202,7 @@ class Presence implements PresenceClient {
         source: source.source
       });
 
-      const staleCard = lastGood?.cards.find((card) => card.kind === kind);
+      const staleCard = freshCardFor(lastGood, kind);
 
       if (staleCard) {
         const card = { ...staleCard, stale: true } as PresenceCard;
@@ -243,7 +243,11 @@ class Presence implements PresenceClient {
     return normalizeListeningFallback(this.config.fallbacks?.listening);
   }
 
-  private async writeCache(snapshot: PresenceSnapshot, now: Date) {
+  private async writeCache(
+    snapshot: PresenceSnapshot,
+    lastGood: PresenceSnapshot | null,
+    now: Date
+  ) {
     if (!this.cache) {
       return;
     }
@@ -258,10 +262,16 @@ class Presence implements PresenceClient {
       this.cache.ttlSeconds
     );
 
+    const nextLastGood = mergeLastGoodSnapshot(snapshot, lastGood);
+
+    if (!nextLastGood) {
+      return;
+    }
+
     await setStoreValue<PresenceSnapshot>(
       this.cache.store,
       this.cache.lastGoodKey,
-      snapshot,
+      nextLastGood,
       this.cache.lastGoodTtlSeconds
     );
   }
@@ -273,6 +283,50 @@ function createEmptyStates(): Record<PresenceKind, PresenceSourceState> {
     listening: { status: "disabled" },
     playing: { status: "disabled" }
   };
+}
+
+function mergeLastGoodSnapshot(
+  snapshot: PresenceSnapshot,
+  lastGood: PresenceSnapshot | null
+): PresenceSnapshot | null {
+  const hasFreshCard = PRESENCE_ORDER.some(
+    (kind) => snapshot.sources[kind].status === "fresh"
+  );
+
+  if (!hasFreshCard) {
+    return null;
+  }
+
+  const cards: PresenceCard[] = [];
+  const sources = createEmptyStates();
+
+  for (const kind of PRESENCE_ORDER) {
+    const card = freshCardFor(snapshot, kind) ?? freshCardFor(lastGood, kind);
+
+    if (!card) {
+      continue;
+    }
+
+    cards.push(card);
+    sources[kind] = state("fresh", card);
+  }
+
+  return {
+    cards,
+    generatedAt: snapshot.generatedAt,
+    sources
+  };
+}
+
+function freshCardFor(
+  snapshot: PresenceSnapshot | null,
+  kind: PresenceKind
+): PresenceCard | null {
+  if (!snapshot || snapshot.sources[kind].status !== "fresh") {
+    return null;
+  }
+
+  return snapshot.cards.find((card) => card.kind === kind) ?? null;
 }
 
 function isRecordablePlayingSource(
