@@ -39,3 +39,8 @@ export {
 } from "./sources/github";
 export { lastFmSource, type LastFmSourceOptions } from "./sources/lastfm";
 export { playedEventSource, type PlayedEventSourceOptions } from "./sources/played";
+export {
+  wakatimeSource,
+  type WakaTimeProjectConfig,
+  type WakaTimeSourceOptions
+} from "./sources/wakatime";

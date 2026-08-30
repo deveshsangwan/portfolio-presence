@@ -126,8 +126,10 @@ async function writeConsumerFiles(dir: string) {
         lastFmSource,
         memoryStore,
         playedEventSource,
+        wakatimeSource,
         type GitHubSourceOptions,
-        type PresenceSnapshot
+        type PresenceSnapshot,
+        type WakaTimeSourceOptions
       } from "portfolio-presence";
       import {
         createPlayedIngestHandler,
@@ -170,6 +172,17 @@ async function writeConsumerFiles(dir: string) {
         apiKey: "test",
         username: "devesh"
       });
+      const wakatimeOptions: WakaTimeSourceOptions = {
+        apiKey: "server-secret",
+        projects: [
+          {
+            href: "https://example.test/portfolio-presence",
+            label: "Portfolio Presence",
+            name: "portfolio-presence"
+          }
+        ]
+      };
+      const _wakatime = wakatimeSource(wakatimeOptions);
 
       const getHandler = createPresenceGetHandler(presence);
       const postHandler = createPlayedIngestHandler(presence, {
@@ -201,7 +214,8 @@ async function writeConsumerFiles(dir: string) {
       import {
         definePresence,
         memoryStore,
-        playedEventSource
+        playedEventSource,
+        wakatimeSource
       } from "portfolio-presence";
       import {
         createPlayedIngestHandler,
@@ -227,8 +241,8 @@ async function writeConsumerFiles(dir: string) {
       const readResponse = await GET();
       const snapshot = await readResponse.json();
 
-      if (typeof usePresence !== "function") {
-        throw new Error("React export did not load.");
+      if (typeof usePresence !== "function" || typeof wakatimeSource !== "function") {
+        throw new Error("Package exports did not load.");
       }
 
       if (writeResponse.status !== 201 || snapshot.cards[0]?.title !== "MCOC") {

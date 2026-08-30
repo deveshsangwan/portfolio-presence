@@ -8,6 +8,7 @@
 ## Sources
 
 - `githubSource(options)`: creates a Building source from public or allowlisted GitHub repos.
+- `wakatimeSource(options)`: creates a Building source from allowlisted WakaTime projects.
 - `lastFmSource(options)`: creates a Listening source from Last.fm recent tracks.
 - `playedEventSource(options)`: creates a recordable Playing source.
 

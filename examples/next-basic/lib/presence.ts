@@ -1,6 +1,12 @@
-import { definePresence, memoryStore, playedEventSource } from "portfolio-presence";
+import {
+  definePresence,
+  memoryStore,
+  playedEventSource,
+  wakatimeSource
+} from "portfolio-presence";
 
 const store = memoryStore();
+const wakatimeApiKey = process.env.WAKATIME_API_KEY;
 
 export const presence = definePresence({
   cache: {
@@ -22,6 +28,18 @@ export const presence = definePresence({
     }
   },
   sources: {
+    building: wakatimeApiKey
+      ? wakatimeSource({
+          apiKey: wakatimeApiKey,
+          projects: [
+            {
+              href: "https://github.com/deveshsangwan/portfolio-presence",
+              label: "portfolio-presence",
+              name: "portfolio-presence"
+            }
+          ]
+        })
+      : false,
     playing: playedEventSource({ store })
   }
 });
