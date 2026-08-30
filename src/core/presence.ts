@@ -164,11 +164,6 @@ class Presence implements PresenceClient {
       }
     }
 
-    if (PRESENCE_ORDER.some((kind) => cards[kind])) {
-      await store.delete(lastGoodKey);
-      return cards;
-    }
-
     const legacySnapshot = await store.get<PresenceSnapshot>(lastGoodKey);
 
     if (!legacySnapshot) {
@@ -176,6 +171,10 @@ class Presence implements PresenceClient {
     }
 
     const legacyCards = PRESENCE_ORDER.flatMap((kind) => {
+      if (cards[kind]) {
+        return [];
+      }
+
       const card = findFreshCard(legacySnapshot, kind);
       return card ? [card] : [];
     });
@@ -380,15 +379,25 @@ function normalizeCache(cache: false | PresenceCacheOptions | undefined) {
     return undefined;
   }
 
+  const key = cache?.key ?? DEFAULT_CACHE_KEY;
+  const lastGoodKey = cache?.lastGoodKey ?? DEFAULT_LAST_GOOD_KEY;
   const ttlSeconds = cache?.ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS;
   const lastGoodTtlSeconds = cache?.lastGoodTtlSeconds;
+  const recoveryKeys = [
+    lastGoodKey,
+    ...PRESENCE_ORDER.map((kind) => createLastGoodKey(lastGoodKey, kind))
+  ];
+
+  if (recoveryKeys.includes(key)) {
+    throw new RangeError("Snapshot cache key must not overlap last-good recovery keys.");
+  }
 
   assertValidTtlSeconds(ttlSeconds);
   assertValidTtlSeconds(lastGoodTtlSeconds);
 
   return {
-    key: cache?.key ?? DEFAULT_CACHE_KEY,
-    lastGoodKey: cache?.lastGoodKey ?? DEFAULT_LAST_GOOD_KEY,
+    key,
+    lastGoodKey,
     lastGoodTtlSeconds,
     store: cache?.store ?? memoryStore(),
     ttlSeconds
