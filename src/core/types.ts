@@ -142,6 +142,12 @@ export interface PresenceFallbacks {
   playing?: PlayingFallback;
 }
 
+export interface PresenceSources {
+  building?: false | null | PresenceSource<BuildingPresenceCard>;
+  listening?: false | null | PresenceSource<ListeningPresenceCard>;
+  playing?: false | null | PresenceSource<PlayingPresenceCard>;
+}
+
 export interface PresenceStore {
   delete: (key: string) => Promise<void>;
   get: <TValue>(key: string) => Promise<TValue | null>;
@@ -176,7 +182,7 @@ export interface PresenceConfig {
   fallbacks?: PresenceFallbacks;
   fetch?: FetchLike;
   logger?: PresenceLogger;
-  sources?: Partial<Record<PresenceKind, false | null | PresenceSource>>;
+  sources?: PresenceSources;
 }
 
 export interface GetPresenceSnapshotOptions {

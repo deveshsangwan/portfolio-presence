@@ -266,7 +266,14 @@ describe("definePresence", () => {
   );
 
   it("captures source and fallback configuration when the client is defined", async () => {
-    const buildingFallback = { title: "Original Project" };
+    const buildingFallback = {
+      metadata: {
+        project: {
+          phase: "Original Phase"
+        }
+      },
+      title: "Original Project"
+    };
     const sources: NonNullable<PresenceConfig["sources"]> = {};
     const presence = definePresence({
       cache: false,
@@ -277,30 +284,102 @@ describe("definePresence", () => {
     });
 
     buildingFallback.title = "Changed Project";
+    buildingFallback.metadata.project.phase = "Changed Phase";
     sources.building = freshBuildingSource;
 
-    const snapshot = await presence.getSnapshot();
+    const firstSnapshot = await presence.getSnapshot();
+    const firstCard = firstSnapshot.cards.find((card) => card.kind === "building");
 
-    expect(snapshot.cards[0]?.title).toBe("Original Project");
-    expect(snapshot.sources.building.status).toBe("fallback");
+    expect(firstCard?.title).toBe("Original Project");
+    expect(firstCard?.metadata).toEqual({
+      project: {
+        phase: "Original Phase"
+      }
+    });
+    expect(firstSnapshot.sources.building.status).toBe("fallback");
+
+    const projectMetadata = firstCard?.metadata?.project;
+
+    if (
+      typeof projectMetadata !== "object" ||
+      projectMetadata === null ||
+      Array.isArray(projectMetadata)
+    ) {
+      throw new Error("Expected nested project metadata.");
+    }
+
+    projectMetadata.phase = "Changed Snapshot Phase";
+
+    const secondSnapshot = await presence.getSnapshot();
+
+    expect(secondSnapshot.cards[0]?.metadata).toEqual({
+      project: {
+        phase: "Original Phase"
+      }
+    });
   });
 
   it("rejects a source assigned to the wrong presence kind", () => {
-    const listeningSource: PresenceSource<ListeningPresenceCard> = {
-      kind: "listening",
+    const mismatchedSource: PresenceSource<BuildingPresenceCard> = {
+      kind: "building",
       source: "test",
       async getCard() {
-        return listeningCard("A Track");
+        return freshBuildingCard;
       }
     };
+
+    Object.defineProperty(mismatchedSource, "kind", { value: "listening" });
 
     expect(() =>
       definePresence({
         sources: {
-          building: listeningSource
+          building: mismatchedSource
         }
       })
     ).toThrow("The building source declares itself as listening.");
+  });
+
+  it("recovers when a source returns a card for another presence kind", async () => {
+    const warn = vi.fn();
+    const mismatchedSource: PresenceSource<BuildingPresenceCard> = {
+      kind: "building",
+      source: "test",
+      async getCard() {
+        return freshBuildingCard;
+      }
+    };
+
+    Object.defineProperty(mismatchedSource, "getCard", {
+      value: async () => listeningCard("A Track")
+    });
+
+    const presence = definePresence({
+      cache: false,
+      fallbacks: {
+        building: { title: "Manual Project" }
+      },
+      logger: { warn },
+      sources: {
+        building: mismatchedSource
+      }
+    });
+
+    const snapshot = await presence.getSnapshot();
+
+    expect(snapshot.cards).toMatchObject([
+      {
+        kind: "building",
+        source: "manual",
+        title: "Manual Project"
+      }
+    ]);
+    expect(snapshot.sources.building.status).toBe("fallback");
+    expect(snapshot.sources.listening.status).toBe("disabled");
+    expect(warn).toHaveBeenCalledWith("Presence source failed.", {
+      error: "The building source returned a listening card.",
+      kind: "building",
+      source: "test"
+    });
   });
 
   it("returns cached snapshots within the cache ttl", async () => {

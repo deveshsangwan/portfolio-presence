@@ -104,7 +104,7 @@ async function resolveKind(
   }
 
   if (entry.fallback) {
-    return cardResolution("fallback", { ...entry.fallback });
+    return cardResolution("fallback", structuredClone(entry.fallback));
   }
 
   return unrecoveredResolution(outcome);
@@ -125,6 +125,13 @@ async function executeSource(
 
     if (!card) {
       return { source: source.source, type: "empty" };
+    }
+
+    if (card.kind !== entry.kind) {
+      throw new PresenceError(
+        `The ${entry.kind} source returned a ${card.kind} card.`,
+        { code: "source_kind_mismatch", status: 502 }
+      );
     }
 
     return {
@@ -198,7 +205,7 @@ function normalizeSource(
 function freezeFallback<TCard extends PresenceCard>(
   fallback: TCard | null
 ): Readonly<TCard> | null {
-  return fallback ? Object.freeze(fallback) : null;
+  return fallback ? Object.freeze(structuredClone(fallback)) : null;
 }
 
 function normalizeBuildingFallback(
