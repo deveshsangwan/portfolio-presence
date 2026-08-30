@@ -34,6 +34,9 @@ The store adapter owns the backend-specific operation. For example, a Redis
 adapter should translate a positive `ttlSeconds` into its client's expiry option
 (such as `EX`) and should write without an expiry when the option is omitted.
 Only fresh source cards update last-good recovery data. A refresh without a
-fresh card leaves the recovery key and its expiry unchanged.
+fresh card leaves recovery data and its expiry unchanged. Each kind uses a
+derived key in the form `<lastGoodKey>:<kind>`, so one kind cannot renew or
+overwrite another kind's recovery entry. A zero last-good TTL clears the
+derived keys and the legacy aggregate key.
 The snapshot also contains an application-level `expiresAt` value, which prevents
 stale reads from stores that cannot enforce physical TTLs.

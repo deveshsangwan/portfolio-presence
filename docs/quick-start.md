@@ -71,4 +71,5 @@ const snapshot = await presence.getSnapshot();
 `cache.ttlSeconds` is forwarded to the configured store. For Redis-backed
 stores, make sure the store translates it to the client's expiry option. Add
 `lastGoodTtlSeconds` when last-good recovery data should expire; omit it to
-retain that data indefinitely. Only fresh source cards update recovery data.
+retain that data indefinitely. Only fresh source cards update recovery data,
+and each card kind expires independently.

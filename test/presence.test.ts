@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   definePresence,
   githubSource,
@@ -8,6 +8,7 @@ import {
   type BuildingPresenceCard,
   type FetchLike,
   type ListeningPresenceCard,
+  type PresenceCard,
   type PresenceSnapshot,
   type PresenceStore,
   type PresenceSource
@@ -43,18 +44,74 @@ function recordingStore(): PresenceStore & {
   };
 }
 
+const freshBuildingCard: BuildingPresenceCard = {
+  kind: "building",
+  label: "Building",
+  source: "test",
+  title: "Investment Sync"
+};
+
 const freshBuildingSource: PresenceSource<BuildingPresenceCard> = {
   kind: "building",
   source: "test",
   async getCard() {
-    return {
-      kind: "building",
-      label: "Building",
-      source: "test",
-      title: "Investment Sync"
-    };
+    return freshBuildingCard;
   }
 };
+
+function scriptedSource<TCard extends PresenceCard>(
+  kind: TCard["kind"],
+  sourceName: string,
+  outcomes: Array<Error | TCard | null>
+): PresenceSource<TCard> {
+  let outcomeIndex = 0;
+
+  return {
+    kind,
+    source: sourceName,
+    async getCard() {
+      const outcome = outcomes[outcomeIndex];
+      outcomeIndex += 1;
+
+      if (outcome === undefined) {
+        throw new Error("Scripted source has no remaining outcome.");
+      }
+
+      if (outcome instanceof Error) {
+        throw outcome;
+      }
+
+      return outcome;
+    }
+  };
+}
+
+function listeningCard(title: string): ListeningPresenceCard {
+  return {
+    kind: "listening",
+    label: "Listening to",
+    source: "test",
+    title
+  };
+}
+
+function legacyLastGoodSnapshot(
+  card: BuildingPresenceCard,
+  status: "fallback" | "fresh"
+): PresenceSnapshot {
+  return {
+    cards: [card],
+    generatedAt: "2026-06-13T10:00:00.000Z",
+    sources: {
+      building: {
+        source: card.source,
+        status
+      },
+      listening: { status: "disabled" },
+      playing: { status: "disabled" }
+    }
+  };
+}
 
 describe("store TTL validation", () => {
   it.each([-1, Number.NaN, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY])(
@@ -307,6 +364,144 @@ describe("definePresence", () => {
     expect(recoveredSnapshot.sources.listening.status).toBe("stale");
   });
 
+  it("expires last-good cards independently by kind", async () => {
+    vi.useFakeTimers();
+
+    try {
+      vi.setSystemTime(new Date("2026-06-13T10:00:00.000Z"));
+
+      const buildingSource = scriptedSource<BuildingPresenceCard>("building", "test", [
+        freshBuildingCard,
+        new Error("Provider down"),
+        new Error("Provider down")
+      ]);
+      const listeningSource = scriptedSource<ListeningPresenceCard>("listening", "test", [
+        listeningCard("First Track"),
+        listeningCard("Second Track"),
+        new Error("Provider down")
+      ]);
+
+      const presence = definePresence({
+        cache: {
+          lastGoodTtlSeconds: 60,
+          store: memoryStore(),
+          ttlSeconds: 0
+        },
+        sources: {
+          building: buildingSource,
+          listening: listeningSource
+        }
+      });
+
+      await presence.getSnapshot();
+
+      vi.advanceTimersByTime(30_000);
+      const mixedSnapshot = await presence.getSnapshot({ bypassCache: true });
+
+      expect(mixedSnapshot.sources.building.status).toBe("stale");
+      expect(mixedSnapshot.sources.listening.status).toBe("fresh");
+
+      vi.advanceTimersByTime(31_000);
+      const expiredSnapshot = await presence.getSnapshot({ bypassCache: true });
+
+      expect(expiredSnapshot.cards.find((card) => card.kind === "building")).toBeUndefined();
+      expect(expiredSnapshot.cards.find((card) => card.kind === "listening")).toMatchObject({
+        stale: true,
+        title: "Second Track"
+      });
+      expect(expiredSnapshot.sources.building.status).toBe("error");
+      expect(expiredSnapshot.sources.listening.status).toBe("stale");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves concurrent fresh updates to different kinds", async () => {
+    const store = memoryStore();
+    let releaseSources = () => {};
+    const sourceGate = new Promise<void>((resolve) => {
+      releaseSources = resolve;
+    });
+    const buildingSource: PresenceSource<BuildingPresenceCard> = {
+      kind: "building",
+      source: "test",
+      async getCard() {
+        await sourceGate;
+
+        return freshBuildingCard;
+      }
+    };
+    const listeningSource: PresenceSource<ListeningPresenceCard> = {
+      kind: "listening",
+      source: "test",
+      async getCard() {
+        await sourceGate;
+
+        return listeningCard("Second Track");
+      }
+    };
+
+    const buildingPresence = definePresence({
+      cache: {
+        store,
+        ttlSeconds: 0
+      },
+      sources: {
+        building: buildingSource
+      }
+    });
+
+    const listeningPresence = definePresence({
+      cache: {
+        store,
+        ttlSeconds: 0
+      },
+      sources: {
+        listening: listeningSource
+      }
+    });
+
+    const buildingRefresh = buildingPresence.getSnapshot({ bypassCache: true });
+    const listeningRefresh = listeningPresence.getSnapshot({ bypassCache: true });
+
+    releaseSources();
+    await Promise.all([buildingRefresh, listeningRefresh]);
+
+    const failingPresence = definePresence({
+      cache: {
+        store,
+        ttlSeconds: 0
+      },
+      sources: {
+        building: scriptedSource<BuildingPresenceCard>("building", "test", [
+          new Error("Provider down")
+        ]),
+        listening: scriptedSource<ListeningPresenceCard>("listening", "test", [
+          new Error("Provider down")
+        ])
+      }
+    });
+
+    const recoveredSnapshot = await failingPresence.getSnapshot({ bypassCache: true });
+
+    expect(recoveredSnapshot.cards).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "building",
+          stale: true,
+          title: "Investment Sync"
+        }),
+        expect.objectContaining({
+          kind: "listening",
+          stale: true,
+          title: "Second Track"
+        })
+      ])
+    );
+    expect(recoveredSnapshot.sources.building.status).toBe("stale");
+    expect(recoveredSnapshot.sources.listening.status).toBe("stale");
+  });
+
   it("keeps a fallback as fallback when its source later fails", async () => {
     let calls = 0;
     let shouldFail = false;
@@ -373,28 +568,101 @@ describe("definePresence", () => {
     expect(failedSnapshot.sources.building.status).toBe("fallback");
   });
 
+  it("preserves a fresh card through a fallback response and later failure", async () => {
+    const source = scriptedSource<BuildingPresenceCard>("building", "test", [
+      freshBuildingCard,
+      null,
+      new Error("Provider down")
+    ]);
+    const presence = definePresence({
+      cache: {
+        store: memoryStore(),
+        ttlSeconds: 0
+      },
+      fallbacks: {
+        building: {
+          title: "Manual Project"
+        }
+      },
+      sources: {
+        building: source
+      }
+    });
+
+    const freshSnapshot = await presence.getSnapshot();
+    const fallbackSnapshot = await presence.getSnapshot({ bypassCache: true });
+    const recoveredSnapshot = await presence.getSnapshot({ bypassCache: true });
+
+    expect(freshSnapshot.sources.building.status).toBe("fresh");
+    expect(fallbackSnapshot.cards[0]).toMatchObject({
+      source: "manual",
+      title: "Manual Project"
+    });
+    expect(fallbackSnapshot.sources.building.status).toBe("fallback");
+    expect(recoveredSnapshot.cards[0]).toMatchObject({
+      source: "test",
+      stale: true,
+      title: "Investment Sync"
+    });
+    expect(recoveredSnapshot.sources.building.status).toBe("stale");
+  });
+
+  it("preserves a fresh card while its source is disabled", async () => {
+    const store = memoryStore();
+    const cache = {
+      store,
+      ttlSeconds: 0
+    };
+
+    const activePresence = definePresence({
+      cache,
+      sources: {
+        building: freshBuildingSource
+      }
+    });
+
+    await activePresence.getSnapshot();
+
+    const disabledPresence = definePresence({ cache });
+    const disabledSnapshot = await disabledPresence.getSnapshot({ bypassCache: true });
+
+    expect(disabledSnapshot.cards).toEqual([]);
+    expect(disabledSnapshot.sources.building.status).toBe("disabled");
+
+    const failingPresence = definePresence({
+      cache,
+      sources: {
+        building: scriptedSource<BuildingPresenceCard>("building", "test", [
+          new Error("Provider down")
+        ])
+      }
+    });
+
+    const recoveredSnapshot = await failingPresence.getSnapshot({ bypassCache: true });
+
+    expect(recoveredSnapshot.cards[0]).toMatchObject({
+      source: "test",
+      stale: true,
+      title: "Investment Sync"
+    });
+    expect(recoveredSnapshot.sources.building.status).toBe("stale");
+  });
+
   it("ignores non-fresh cards already present in recovery storage", async () => {
     const store = memoryStore();
 
-    await store.set<PresenceSnapshot>("last-good", {
-      cards: [
+    await store.set(
+      "last-good",
+      legacyLastGoodSnapshot(
         {
           kind: "building",
           label: "Building",
           source: "manual",
           title: "Legacy Fallback"
-        }
-      ],
-      generatedAt: "2026-06-13T10:00:00.000Z",
-      sources: {
-        building: {
-          source: "manual",
-          status: "fallback"
         },
-        listening: { status: "disabled" },
-        playing: { status: "disabled" }
-      }
-    });
+        "fallback"
+      )
+    );
 
     const presence = definePresence({
       cache: {
@@ -417,6 +685,64 @@ describe("definePresence", () => {
 
     expect(snapshot.cards).toEqual([]);
     expect(snapshot.sources.building.status).toBe("error");
+  });
+
+  it("migrates fresh cards from legacy aggregate recovery storage", async () => {
+    const store = memoryStore();
+
+    await store.set("last-good", legacyLastGoodSnapshot(freshBuildingCard, "fresh"));
+
+    const presence = definePresence({
+      cache: {
+        lastGoodKey: "last-good",
+        store,
+        ttlSeconds: 0
+      },
+      sources: {
+        building: scriptedSource<BuildingPresenceCard>("building", "test", [
+          new Error("Provider down")
+        ])
+      }
+    });
+
+    const snapshot = await presence.getSnapshot({ bypassCache: true });
+
+    expect(snapshot.cards[0]).toMatchObject({
+      stale: true,
+      title: "Investment Sync"
+    });
+    await expect(store.get("last-good")).resolves.toBeNull();
+    await expect(store.get("last-good:building")).resolves.toMatchObject({
+      title: "Investment Sync"
+    });
+  });
+
+  it("clears existing recovery data when the last-good ttl is zero", async () => {
+    const store = memoryStore();
+
+    await store.set("last-good:building", freshBuildingCard);
+    await store.set("last-good", legacyLastGoodSnapshot(freshBuildingCard, "fresh"));
+
+    const presence = definePresence({
+      cache: {
+        lastGoodKey: "last-good",
+        lastGoodTtlSeconds: 0,
+        store,
+        ttlSeconds: 0
+      },
+      sources: {
+        building: scriptedSource<BuildingPresenceCard>("building", "test", [
+          new Error("Provider down")
+        ])
+      }
+    });
+
+    const snapshot = await presence.getSnapshot({ bypassCache: true });
+
+    expect(snapshot.cards).toEqual([]);
+    expect(snapshot.sources.building.status).toBe("error");
+    await expect(store.get("last-good")).resolves.toBeNull();
+    await expect(store.get("last-good:building")).resolves.toBeNull();
   });
 
   it("does not renew a positive last-good ttl during repeated failures", async () => {
@@ -460,8 +786,8 @@ describe("definePresence", () => {
 
     expect(firstFailure.sources.building.status).toBe("stale");
     expect(secondFailure.sources.building.status).toBe("stale");
-    expect(store.writes.filter(({ key }) => key === "last-good")).toEqual([
-      { key: "last-good", ttlSeconds: 3600 }
+    expect(store.writes.filter(({ key }) => key === "last-good:building")).toEqual([
+      { key: "last-good:building", ttlSeconds: 3600 }
     ]);
     expect(store.writes.filter(({ key }) => key === "snapshot")).toHaveLength(3);
   });
@@ -485,7 +811,7 @@ describe("definePresence", () => {
 
     expect(store.writes).toEqual([
       { key: "snapshot", ttlSeconds: 60 },
-      { key: "snapshot:last-good", ttlSeconds: 3600 }
+      { key: "snapshot:last-good:building", ttlSeconds: 3600 }
     ]);
   });
 
@@ -507,7 +833,7 @@ describe("definePresence", () => {
 
     expect(store.writes).toEqual([
       { key: "snapshot", ttlSeconds: 60 },
-      { key: "snapshot:last-good", ttlSeconds: undefined }
+      { key: "snapshot:last-good:building", ttlSeconds: undefined }
     ]);
   });
 
@@ -528,7 +854,13 @@ describe("definePresence", () => {
 
     await presence.getSnapshot();
 
-    expect(store.deletedKeys).toEqual(["snapshot", "snapshot:last-good"]);
+    expect([...store.deletedKeys].sort()).toEqual([
+      "snapshot",
+      "snapshot:last-good",
+      "snapshot:last-good:building",
+      "snapshot:last-good:listening",
+      "snapshot:last-good:playing"
+    ]);
     expect(store.writes).toEqual([]);
   });
 

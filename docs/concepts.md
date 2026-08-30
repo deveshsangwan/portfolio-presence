@@ -32,5 +32,6 @@ even when a backend cannot enforce TTLs.
 
 Fallbacks keep your page populated when a source is empty. Last-good stale data
 keeps your page stable when a provider temporarily fails. Only fresh source
-cards update recovery data. The package retains each card kind independently
-across empty, fallback, stale, error, and disabled outcomes.
+cards update recovery data. Recovery entries are stored and expired per kind.
+Other outcomes leave those entries untouched, but the current snapshot still
+reflects the source outcome.

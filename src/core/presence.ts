@@ -41,6 +41,8 @@ interface NormalizedCache {
   ttlSeconds: number;
 }
 
+type LastGoodCards = Partial<Record<PresenceKind, PresenceCard>>;
+
 export function definePresence(config: PresenceConfig): PresenceClient {
   return new Presence(config);
 }
@@ -57,6 +59,10 @@ class Presence implements PresenceClient {
   async getSnapshot(options: GetPresenceSnapshotOptions = {}) {
     const now = options.now ?? new Date();
 
+    if (this.cache?.lastGoodTtlSeconds === 0) {
+      await this.clearLastGoodCards();
+    }
+
     if (!options.bypassCache) {
       const cached = await this.readFreshCache(now);
 
@@ -65,7 +71,7 @@ class Presence implements PresenceClient {
       }
     }
 
-    const lastGood = await this.readLastGood();
+    const lastGood = await this.readLastGoodCards();
     const context = this.createContext(now);
     const cards: PresenceCard[] = [];
     const states = createEmptyStates();
@@ -86,7 +92,7 @@ class Presence implements PresenceClient {
       sources: states
     };
 
-    await this.writeCache(snapshot, lastGood, now);
+    await this.writeCache(snapshot, now);
     return snapshot;
   }
 
@@ -137,18 +143,80 @@ class Presence implements PresenceClient {
     return entry.snapshot;
   }
 
-  private async readLastGood() {
-    if (!this.cache) {
-      return null;
+  private async readLastGoodCards(): Promise<LastGoodCards> {
+    if (!this.cache || this.cache.lastGoodTtlSeconds === 0) {
+      return {};
     }
 
-    return this.cache.store.get<PresenceSnapshot>(this.cache.lastGoodKey);
+    const { lastGoodKey, lastGoodTtlSeconds, store } = this.cache;
+    const storedEntries = await Promise.all(
+      PRESENCE_ORDER.map(async (kind) => ({
+        card: await store.get<PresenceCard>(createLastGoodKey(lastGoodKey, kind)),
+        kind
+      }))
+    );
+
+    const cards: LastGoodCards = {};
+
+    for (const { card, kind } of storedEntries) {
+      if (card) {
+        cards[kind] = card;
+      }
+    }
+
+    if (PRESENCE_ORDER.some((kind) => cards[kind])) {
+      await store.delete(lastGoodKey);
+      return cards;
+    }
+
+    const legacySnapshot = await store.get<PresenceSnapshot>(lastGoodKey);
+
+    if (!legacySnapshot) {
+      return cards;
+    }
+
+    const legacyCards = PRESENCE_ORDER.flatMap((kind) => {
+      const card = findFreshCard(legacySnapshot, kind);
+      return card ? [card] : [];
+    });
+
+    for (const card of legacyCards) {
+      cards[card.kind] = card;
+    }
+
+    await Promise.all(
+      legacyCards.map((card) =>
+        setStoreValue(
+          store,
+          createLastGoodKey(lastGoodKey, card.kind),
+          card,
+          lastGoodTtlSeconds
+        )
+      )
+    );
+
+    await store.delete(lastGoodKey);
+
+    return cards;
+  }
+
+  private async clearLastGoodCards() {
+    if (!this.cache) {
+      return;
+    }
+
+    const { lastGoodKey, store } = this.cache;
+
+    await Promise.all([
+      store.delete(lastGoodKey),
+      ...PRESENCE_ORDER.map((kind) => store.delete(createLastGoodKey(lastGoodKey, kind)))
+    ]);
   }
 
   private async resolveKind(
     kind: PresenceKind,
     context: PresenceContext,
-    lastGood: PresenceSnapshot | null
+    lastGood: LastGoodCards
   ) {
     const source = this.config.sources?.[kind];
 
@@ -202,7 +270,7 @@ class Presence implements PresenceClient {
         source: source.source
       });
 
-      const staleCard = freshCardFor(lastGood, kind);
+      const staleCard = lastGood[kind];
 
       if (staleCard) {
         const card = { ...staleCard, stale: true } as PresenceCard;
@@ -243,36 +311,40 @@ class Presence implements PresenceClient {
     return normalizeListeningFallback(this.config.fallbacks?.listening);
   }
 
-  private async writeCache(
-    snapshot: PresenceSnapshot,
-    lastGood: PresenceSnapshot | null,
-    now: Date
-  ) {
+  private async writeCache(snapshot: PresenceSnapshot, now: Date) {
     if (!this.cache) {
       return;
     }
 
+    const { key, lastGoodKey, lastGoodTtlSeconds, store, ttlSeconds } = this.cache;
+
     await setStoreValue<SnapshotCacheEntry>(
-      this.cache.store,
-      this.cache.key,
+      store,
+      key,
       {
-        expiresAt: new Date(now.getTime() + this.cache.ttlSeconds * 1000).toISOString(),
+        expiresAt: new Date(now.getTime() + ttlSeconds * 1000).toISOString(),
         snapshot
       },
-      this.cache.ttlSeconds
+      ttlSeconds
     );
 
-    const nextLastGood = mergeLastGoodSnapshot(snapshot, lastGood);
-
-    if (!nextLastGood) {
+    if (lastGoodTtlSeconds === 0) {
       return;
     }
 
-    await setStoreValue<PresenceSnapshot>(
-      this.cache.store,
-      this.cache.lastGoodKey,
-      nextLastGood,
-      this.cache.lastGoodTtlSeconds
+    const freshCards = snapshot.cards.filter(
+      (card) => snapshot.sources[card.kind].status === "fresh"
+    );
+
+    await Promise.all(
+      freshCards.map((card) =>
+        setStoreValue(
+          store,
+          createLastGoodKey(lastGoodKey, card.kind),
+          card,
+          lastGoodTtlSeconds
+        )
+      )
     );
   }
 }
@@ -285,44 +357,12 @@ function createEmptyStates(): Record<PresenceKind, PresenceSourceState> {
   };
 }
 
-function mergeLastGoodSnapshot(
-  snapshot: PresenceSnapshot,
-  lastGood: PresenceSnapshot | null
-): PresenceSnapshot | null {
-  const hasFreshCard = PRESENCE_ORDER.some(
-    (kind) => snapshot.sources[kind].status === "fresh"
-  );
-
-  if (!hasFreshCard) {
-    return null;
-  }
-
-  const cards: PresenceCard[] = [];
-  const sources = createEmptyStates();
-
-  for (const kind of PRESENCE_ORDER) {
-    const card = freshCardFor(snapshot, kind) ?? freshCardFor(lastGood, kind);
-
-    if (!card) {
-      continue;
-    }
-
-    cards.push(card);
-    sources[kind] = state("fresh", card);
-  }
-
-  return {
-    cards,
-    generatedAt: snapshot.generatedAt,
-    sources
-  };
+function createLastGoodKey(baseKey: string, kind: PresenceKind) {
+  return `${baseKey}:${kind}`;
 }
 
-function freshCardFor(
-  snapshot: PresenceSnapshot | null,
-  kind: PresenceKind
-): PresenceCard | null {
-  if (!snapshot || snapshot.sources[kind].status !== "fresh") {
+function findFreshCard(snapshot: PresenceSnapshot, kind: PresenceKind) {
+  if (snapshot.sources[kind].status !== "fresh") {
     return null;
   }
 
