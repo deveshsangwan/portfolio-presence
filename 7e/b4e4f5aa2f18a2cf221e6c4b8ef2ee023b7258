@@ -1,0 +1,49 @@
+docs/concepts.md
+  s_a7d3dde769eaba::t_d0f4deab98fa70 21
+docs/providers/wakatime.md
+  s_a7d3dde769eaba::t_d0f4deab98fa70 1-42,45-58
+  s_a7d3dde769eaba::t_ed73762e20e223 43-44
+test/wakatime.test.ts
+  s_a7d3dde769eaba::t_ef95019ba853f2 1-169,171-264
+  s_a7d3dde769eaba::t_ed73762e20e223 170
+docs/index.md
+  s_a7d3dde769eaba::t_d0f4deab98fa70 8
+docs/privacy.md
+  s_a7d3dde769eaba::t_e45de33b2558bf 9-14
+  s_a7d3dde769eaba::t_d0f4deab98fa70 8
+examples/next-basic/lib/presence.ts
+  s_a7d3dde769eaba::t_d0f4deab98fa70 1-6,9,31-42
+docs/.vitepress/config.ts
+  s_a7d3dde769eaba::t_d0f4deab98fa70 29
+package.json
+  s_a7d3dde769eaba::t_d0f4deab98fa70 20
+docs/api.md
+  s_a7d3dde769eaba::t_d0f4deab98fa70 11
+docs/quick-start.md
+  s_a7d3dde769eaba::t_d0f4deab98fa70 71-91
+src/sources/wakatime.ts
+  s_a7d3dde769eaba::t_ef95019ba853f2 1-51,53-71,73-75,77-165,167-178,180-189,193,197-203,216-217,219-220,228-240
+  s_a7d3dde769eaba::t_e45de33b2558bf 52,72,76,166,179,190-192,194-196,204-215,218,221-227
+test/integration/package-consumer.test.ts
+  s_a7d3dde769eaba::t_d0f4deab98fa70 129,131-132,175-185,217-218,244-245
+README.md
+  s_a7d3dde769eaba::t_d0f4deab98fa70 11,88-110,220-221,231
+src/index.ts
+  s_a7d3dde769eaba::t_ef95019ba853f2 42-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "7eb4e4f5aa2f18a2cf221e6c4b8ef2ee023b7258",
+  "prompts": {},
+  "sessions": {
+    "s_a7d3dde769eaba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05453-1583-7102-809e-b9a7078ddad3",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Devesh Sangwan <deveshsangwan@PAISAMAC156.local>"
+    }
+  }
+}
