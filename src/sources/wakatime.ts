@@ -35,10 +35,13 @@ interface SelectedWakaTimeProject {
 }
 
 const WAKATIME_API_BASE_URL = "https://api.wakatime.com/api/v1";
+const ISO_8601_DATETIME =
+  /^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
 
 export function wakatimeSource(
   options: WakaTimeSourceOptions
 ): PresenceSource<BuildingPresenceCard> {
+  const apiBaseUrl = normalizeApiBaseUrl(options.apiBaseUrl);
   const apiKey = normalizeApiKey(options.apiKey);
   const projects = normalizeProjects(options.projects);
   const projectsByName = new Map(projects.map((project) => [project.name, project]));
@@ -49,7 +52,7 @@ export function wakatimeSource(
 
     async getCard(context) {
       const fetchImpl = options.fetch ?? context.fetch;
-      const activity = await fetchProjectActivity(options.apiBaseUrl, apiKey, fetchImpl);
+      const activity = await fetchProjectActivity(apiBaseUrl, apiKey, fetchImpl);
       const selected = selectLatestAllowedProject(activity, projectsByName);
 
       if (!selected) {
@@ -69,15 +72,14 @@ export function wakatimeSource(
 }
 
 async function fetchProjectActivity(
-  apiBaseUrl: string | undefined,
+  apiBaseUrl: string,
   apiKey: string,
   fetchImpl: FetchLike
 ) {
-  const baseUrl = (apiBaseUrl ?? WAKATIME_API_BASE_URL).replace(/\/+$/, "");
   let response: Response;
 
   try {
-    response = await fetchImpl(`${baseUrl}/users/current/projects`, {
+    response = await fetchImpl(`${apiBaseUrl}/users/current/projects`, {
       headers: {
         Accept: "application/json",
         Authorization: `Basic ${btoa(apiKey)}`,
@@ -107,11 +109,11 @@ async function readProjectActivity(response: Response): Promise<unknown[]> {
   try {
     payload = await response.json();
   } catch {
-    throw invalidWakaTimeResponse();
+    throw createInvalidWakaTimeResponseError();
   }
 
   if (!isRecord(payload)) {
-    throw invalidWakaTimeResponse();
+    throw createInvalidWakaTimeResponseError();
   }
 
   if (payload.error !== undefined || payload.errors !== undefined) {
@@ -122,7 +124,7 @@ async function readProjectActivity(response: Response): Promise<unknown[]> {
   }
 
   if (!Array.isArray(payload.data)) {
-    throw invalidWakaTimeResponse();
+    throw createInvalidWakaTimeResponseError();
   }
 
   return payload.data;
@@ -147,9 +149,9 @@ function selectLatestAllowedProject(
     }
 
     const config = projectsByName.get(name);
-    const timestamp = Date.parse(lastHeartbeatAt);
+    const timestamp = parseIsoDateTime(lastHeartbeatAt);
 
-    if (!config || Number.isNaN(timestamp) || (selected && timestamp <= selected.timestamp)) {
+    if (timestamp === null || !config || (selected && timestamp <= selected.timestamp)) {
       continue;
     }
 
@@ -161,6 +163,62 @@ function selectLatestAllowedProject(
   }
 
   return selected;
+}
+
+function parseIsoDateTime(value: string) {
+  const match = ISO_8601_DATETIME.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  if (day < 1 || day > daysInMonth(year, month)) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function daysInMonth(year: number, month: number) {
+  if (month === 2) {
+    return isLeapYear(year) ? 29 : 28;
+  }
+
+  if (month === 4 || month === 6 || month === 9 || month === 11) {
+    return 30;
+  }
+
+  return month >= 1 && month <= 12 ? 31 : 0;
+}
+
+function isLeapYear(year: number) {
+  return year % 400 === 0 || (year % 4 === 0 && year % 100 !== 0);
+}
+
+function normalizeApiBaseUrl(apiBaseUrl: unknown) {
+  const value = apiBaseUrl ?? WAKATIME_API_BASE_URL;
+  let url: URL;
+
+  if (typeof value !== "string") {
+    throw createInvalidWakaTimeApiBaseUrlError();
+  }
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw createInvalidWakaTimeApiBaseUrlError();
+  }
+
+  if (url.protocol !== "https:" || url.search || url.hash) {
+    throw createInvalidWakaTimeApiBaseUrlError();
+  }
+
+  return url.href.replace(/\/+$/, "");
 }
 
 function normalizeApiKey(apiKey: unknown) {
@@ -184,7 +242,18 @@ function normalizeProjects(projects: unknown) {
     });
   }
 
-  return projects.map(normalizeProject);
+  const normalizedProjects = projects.map(normalizeProject);
+  const projectNames = new Set<string>();
+
+  for (const project of normalizedProjects) {
+    if (projectNames.has(project.name)) {
+      throw createDuplicateWakaTimeProjectError();
+    }
+
+    projectNames.add(project.name);
+  }
+
+  return normalizedProjects;
 }
 
 function normalizeProject(project: unknown): NormalizedWakaTimeProject {
@@ -192,7 +261,7 @@ function normalizeProject(project: unknown): NormalizedWakaTimeProject {
     const name = project.trim();
 
     if (!name) {
-      throw invalidWakaTimeProject();
+      throw createInvalidWakaTimeProjectError();
     }
 
     return {
@@ -202,33 +271,67 @@ function normalizeProject(project: unknown): NormalizedWakaTimeProject {
   }
 
   if (!isRecord(project) || typeof project.name !== "string") {
-    throw invalidWakaTimeProject();
+    throw createInvalidWakaTimeProjectError();
   }
 
   const name = project.name.trim();
 
   if (!name) {
-    throw invalidWakaTimeProject();
+    throw createInvalidWakaTimeProjectError();
   }
 
-  const publicLabel = typeof project.label === "string" ? project.label.trim() : undefined;
+  let publicLabel: string | undefined;
+
+  if (project.label !== undefined) {
+    publicLabel = typeof project.label === "string" ? project.label.trim() : "";
+
+    if (!publicLabel) {
+      throw createInvalidWakaTimeProjectError(
+        "WakaTime project labels must not be blank."
+      );
+    }
+  }
+
   const href = typeof project.href === "string" ? project.href : undefined;
+  const safeHref = isHttpUrl(href) ? href : undefined;
+
+  if (publicLabel && safeHref?.toLowerCase().includes(name.toLowerCase())) {
+    throw createInvalidWakaTimeProjectError(
+      "WakaTime project links must not contain an aliased project name."
+    );
+  }
 
   return withoutUndefined({
-    href: isHttpUrl(href) ? href : undefined,
+    href: safeHref,
     name,
     title: publicLabel || titleFromSlug(name)
   });
 }
 
-function invalidWakaTimeProject() {
-  return new PresenceError("Invalid WakaTime project config.", {
+function createInvalidWakaTimeApiBaseUrlError() {
+  return new PresenceError("WakaTime API base URL must be a valid HTTPS URL.", {
+    code: "invalid_wakatime_api_base_url",
+    status: 400
+  });
+}
+
+function createDuplicateWakaTimeProjectError() {
+  return new PresenceError("WakaTime project names must be unique.", {
+    code: "duplicate_wakatime_project",
+    status: 400
+  });
+}
+
+function createInvalidWakaTimeProjectError(
+  message = "Invalid WakaTime project config."
+) {
+  return new PresenceError(message, {
     code: "invalid_wakatime_project",
     status: 400
   });
 }
 
-function invalidWakaTimeResponse() {
+function createInvalidWakaTimeResponseError() {
   return new PresenceError("WakaTime API returned an invalid response.", {
     code: "wakatime_invalid_response",
     status: 502

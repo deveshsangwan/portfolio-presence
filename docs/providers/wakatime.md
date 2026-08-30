@@ -31,12 +31,15 @@ title. Use an object with `label` when the WakaTime name should remain private.
 The card uses the configured label and never copies WakaTime project metadata.
 
 Configured links must use HTTP or HTTPS. The source drops other URL schemes.
+For an aliased project, the link must not contain the raw WakaTime project name.
+This comparison is case-insensitive.
 
 ## Authentication
 
 The source sends the API key through WakaTime's documented HTTP Basic
 authentication header. Store the key in a server-only environment variable.
 Never use it in a Client Component, browser bundle, or `NEXT_PUBLIC_` variable.
+Custom `apiBaseUrl` values must use HTTPS.
 
 WakaTime documents the Projects endpoint and API-key authentication in its
 [official API documentation](https://wakatime.com/developers). The source does

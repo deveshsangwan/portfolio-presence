@@ -86,6 +86,67 @@ describe("wakatimeSource", () => {
     expect(JSON.stringify(card)).not.toContain("private/repository");
   });
 
+  it("rejects duplicate normalized project names", () => {
+    expect(() =>
+      wakatimeSource({
+        apiKey: "secret",
+        projects: [
+          {
+            label: "Customer Platform",
+            name: " private-client-platform "
+          },
+          "private-client-platform"
+        ]
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: "duplicate_wakatime_project",
+        status: 400
+      })
+    );
+  });
+
+  it("rejects a blank public alias", () => {
+    expect(() =>
+      wakatimeSource({
+        apiKey: "secret",
+        projects: [
+          {
+            label: "   ",
+            name: "private-client-platform"
+          }
+        ]
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: "invalid_wakatime_project",
+        message: "WakaTime project labels must not be blank.",
+        status: 400
+      })
+    );
+  });
+
+  it("rejects an aliased link that contains the private project name", () => {
+    expect(() =>
+      wakatimeSource({
+        apiKey: "secret",
+        projects: [
+          {
+            href: "https://example.test/projects/PRIVATE-CLIENT-PLATFORM",
+            label: "Customer Platform",
+            name: "private-client-platform"
+          }
+        ]
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: "invalid_wakatime_project",
+        message: "WakaTime project links must not contain an aliased project name.",
+        status: 400
+      })
+    );
+  });
+
   it("drops unsafe project links", async () => {
     const fetchMock: FetchLike = async () =>
       Response.json({
@@ -135,6 +196,30 @@ describe("wakatimeSource", () => {
     await expect(source.getCard(context)).resolves.toBeNull();
   });
 
+  it.each([
+    "2026-02-30T12:00:00.000Z",
+    "2025-02-29T12:00:00.000Z",
+    "2026-06-13 12:00:00.000Z"
+  ])("ignores the parseable invalid datetime %s", async (lastHeartbeatAt) => {
+    expect(Number.isNaN(Date.parse(lastHeartbeatAt))).toBe(false);
+    const fetchMock: FetchLike = async () =>
+      Response.json({
+        data: [
+          {
+            last_heartbeat_at: lastHeartbeatAt,
+            name: "portfolio-presence"
+          }
+        ]
+      });
+    const source = wakatimeSource({
+      apiKey: "secret",
+      fetch: fetchMock,
+      projects: ["portfolio-presence"]
+    });
+
+    await expect(source.getCard(context)).resolves.toBeNull();
+  });
+
   it("returns null for an empty project list", async () => {
     const fetchMock: FetchLike = async () => Response.json({ data: [] });
     const source = wakatimeSource({
@@ -176,6 +261,32 @@ describe("wakatimeSource", () => {
     ]);
     expect(requests[0]?.url).not.toContain("server-secret");
   });
+
+  it.each(["not a url", "http://wakatime.example/api/v1"])(
+    "rejects the API base URL %s before making a request",
+    (apiBaseUrl) => {
+      let requestCount = 0;
+      const fetchMock: FetchLike = async () => {
+        requestCount += 1;
+        return Response.json({ data: [] });
+      };
+
+      expect(() =>
+        wakatimeSource({
+          apiBaseUrl,
+          apiKey: "server-secret",
+          fetch: fetchMock,
+          projects: ["portfolio-presence"]
+        })
+      ).toThrowError(
+        expect.objectContaining({
+          code: "invalid_wakatime_api_base_url",
+          status: 400
+        })
+      );
+      expect(requestCount).toBe(0);
+    }
+  );
 
   it.each([
     ["missing data", {}, "wakatime_invalid_response"],
