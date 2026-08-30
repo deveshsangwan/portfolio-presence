@@ -1,0 +1,55 @@
+test/presence.test.ts
+  s_a7d3dde769eaba::t_5aff0bf2d13f38 610-615,617-639,641-650
+  s_a7d3dde769eaba::t_6263d5159d10d7 690-692,694-719
+  s_a7d3dde769eaba::t_1e2e7ab50f8436 98-115,654-656,663-665,693,724
+  s_a7d3dde769eaba::t_42e8bb41a4c4fa 723,734-736
+  s_a7d3dde769eaba::t_032a48a49829ed 66
+  s_a7d3dde769eaba::t_3a004637a01788 1,367-372,383-416
+  s_a7d3dde769eaba::t_711aaf97e19c0c 47-53,58
+  s_a7d3dde769eaba::t_7eab6a9ca6de7d 89-97,373-382
+  s_a7d3dde769eaba::t_783d703a4bb6b0 425-429,431-443,450,460,476-481
+  s_a7d3dde769eaba::t_84b1c013e6c240 419-424,430,444-449,451-452,454-459,461-475,482-504
+  s_a7d3dde769eaba::t_74771f9e237baa 417,720-722,725-733,737-747
+  s_a7d3dde769eaba::t_c96fab6636a0e2 789-790,814,836,857-863
+  s_a7d3dde769eaba::t_934b791f67a181 11,62-65,68-72,75-87
+  s_a7d3dde769eaba::t_61c8f04264a7c4 571-609
+  s_a7d3dde769eaba::t_94ee19d4ff2cc0 67,73-74
+  s_a7d3dde769eaba::t_439d7ed8a559e8 453,616,640
+  s_a7d3dde769eaba::t_547770810b4b67 88
+  s_a7d3dde769eaba::t_92356af4a3d243 418
+src/core/presence.ts
+  s_a7d3dde769eaba::t_5553b9aea1b708 151,193
+  s_a7d3dde769eaba::t_6477e3b32ca4e5 320,322,325,328,342-343,345
+  s_a7d3dde769eaba::t_de2b0889a17aec 165,167-177,179,185-187,190,192,196,198-199,364-365
+  s_a7d3dde769eaba::t_439d7ed8a559e8 158,197
+  s_a7d3dde769eaba::t_66c936dbee16c0 44-45,74,95,146,148-150,157,159-160,162-164,200,219,273,314,335-341,344,346-347,360-361
+  s_a7d3dde769eaba::t_167c7f885365d7 62-65,147,201-203,205,208-213,331
+  s_a7d3dde769eaba::t_4a7b890a0b294e 152-156,161,178,180-184,188-189,191,194-195,319,323
+  s_a7d3dde769eaba::t_7d240926419e9b 166
+docs/storage.md
+  s_a7d3dde769eaba::t_8d1c52c91ad598 37-40
+src/core/types.ts
+  s_a7d3dde769eaba::t_8d1c52c91ad598 157,167-169
+docs/quick-start.md
+  s_a7d3dde769eaba::t_8d1c52c91ad598 74-75
+README.md
+  s_a7d3dde769eaba::t_8d1c52c91ad598 91-93
+docs/concepts.md
+  s_a7d3dde769eaba::t_8d1c52c91ad598 35-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "1b097b18358d2b213ffe2a9ba75a0b46330787e0",
+  "prompts": {},
+  "sessions": {
+    "s_a7d3dde769eaba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05453-1583-7102-809e-b9a7078ddad3",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Devesh Sangwan <deveshsangwan@PAISAMAC156.local>"
+    }
+  }
+}
