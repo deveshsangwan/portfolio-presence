@@ -143,9 +143,9 @@ export interface PresenceFallbacks {
 }
 
 export interface PresenceSources {
-  building?: false | null | PresenceSource<BuildingPresenceCard>;
-  listening?: false | null | PresenceSource<ListeningPresenceCard>;
-  playing?: false | null | PresenceSource<PlayingPresenceCard>;
+  building?: false | null | PresenceSource;
+  listening?: false | null | PresenceSource;
+  playing?: false | null | PresenceSource;
 }
 
 export interface PresenceStore {

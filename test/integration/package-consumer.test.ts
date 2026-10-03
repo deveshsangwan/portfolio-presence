@@ -127,7 +127,10 @@ async function writeConsumerFiles(dir: string) {
         memoryStore,
         playedEventSource,
         type GitHubSourceOptions,
-        type PresenceSnapshot
+        type PresenceKind,
+        type PresenceSnapshot,
+        type PresenceSource,
+        type PresenceSources
       } from "portfolio-presence";
       import {
         createPlayedIngestHandler,
@@ -135,6 +138,15 @@ async function writeConsumerFiles(dir: string) {
       } from "portfolio-presence/next";
 
       const store = memoryStore();
+      const customSources: PresenceSources = {
+        building: customSource("building"),
+        listening: customSource("listening"),
+        playing: customSource("playing")
+      };
+      const customPresence = definePresence({
+        cache: false,
+        sources: customSources
+      });
       const presence = definePresence({
         cache: {
           store,
@@ -180,6 +192,16 @@ async function writeConsumerFiles(dir: string) {
       snapshot.cards.map((card) => card.title);
       getHandler satisfies () => Promise<Response>;
       postHandler satisfies (request: Request) => Promise<Response>;
+
+      function customSource(kind: PresenceKind): PresenceSource {
+        return {
+          kind,
+          source: "custom",
+          async getCard() {
+            return null;
+          }
+        };
+      }
     `
   );
 
