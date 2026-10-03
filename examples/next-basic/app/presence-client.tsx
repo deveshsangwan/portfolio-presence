@@ -1,9 +1,16 @@
 "use client";
 
+import type { PresenceSnapshot } from "portfolio-presence";
 import { usePresence } from "portfolio-presence/react";
 
-export function PresenceClient() {
-  const { snapshot, status } = usePresence("/api/presence");
+export function PresenceClient({
+  initialSnapshot
+}: {
+  initialSnapshot: PresenceSnapshot;
+}) {
+  const { snapshot, status } = usePresence("/api/presence", {
+    initialSnapshot
+  });
 
   return (
     <p>
