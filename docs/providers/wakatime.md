@@ -7,7 +7,7 @@ repository pushes.
 import { wakatimeSource } from "portfolio-presence";
 
 wakatimeSource({
-  apiKey: process.env.WAKATIME_API_KEY!,
+  apiKey: process.env.WAKATIME_API_KEY ?? "",
   label: "Working on",
   projects: [
     "portfolio-presence",

@@ -92,7 +92,7 @@ this server-side module:
 import { wakatimeSource } from "portfolio-presence";
 
 const building = wakatimeSource({
-  apiKey: process.env.WAKATIME_API_KEY!,
+  apiKey: process.env.WAKATIME_API_KEY ?? "",
   projects: [
     "portfolio-presence",
     {

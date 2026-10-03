@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { ModuleKind, transpileModule } from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 
 const root = process.cwd();
@@ -28,12 +29,70 @@ describe("packed npm package", () => {
       stdio: "pipe"
     });
 
+    const consumerSource = await readFile(path.join(consumerDir, "consumer.ts"), "utf8");
+    const consumerModule = transpileModule(consumerSource, {
+      compilerOptions: { module: ModuleKind.ESNext }
+    });
+    await writeFile(path.join(consumerDir, "consumer.mjs"), consumerModule.outputText);
+
     const output = execFileSync("node", [path.join(consumerDir, "runtime.mjs")], {
       cwd: consumerDir,
       encoding: "utf8"
     });
 
     expect(output.trim()).toBe("ok");
+  });
+
+  it("loads the Next example with WakaTime enabled and returns its public project", async () => {
+    const consumerDir = await createConsumerProject();
+    const exampleSource = await readFile(
+      path.join(root, "examples", "next-basic", "lib", "presence.ts"),
+      "utf8"
+    );
+    const exampleModule = transpileModule(exampleSource, {
+      compilerOptions: { module: ModuleKind.ESNext }
+    });
+    await writeFile(path.join(consumerDir, "presence.mjs"), exampleModule.outputText);
+    await writeFile(
+      path.join(consumerDir, "example-runtime.mjs"),
+      `
+        globalThis.fetch = async (input) => {
+          if (String(input) !== "https://api.wakatime.com/api/v1/users/current/projects") {
+            throw new Error("Unexpected provider request.");
+          }
+
+          return Response.json({
+            data: [{ name: "portfolio-presence", last_heartbeat_at: "2026-06-13T12:00:00Z" }]
+          });
+        };
+
+        const { presence } = await import("./presence.mjs");
+        const snapshot = await presence.getSnapshot();
+        console.log(JSON.stringify(snapshot));
+      `
+    );
+
+    const output = execFileSync("node", [path.join(consumerDir, "example-runtime.mjs")], {
+      cwd: consumerDir,
+      encoding: "utf8",
+      env: { ...process.env, WAKATIME_API_KEY: "test-key" }
+    });
+    const snapshot: unknown = JSON.parse(output);
+
+    expect(snapshot).toMatchObject({
+      cards: expect.arrayContaining([
+        {
+          href: "https://github.com/deveshsangwan/portfolio-presence",
+          kind: "building",
+          label: "Building",
+          source: "wakatime",
+          stale: false,
+          title: "Portfolio Presence",
+          updatedAt: "2026-06-13T12:00:00.000Z"
+        }
+      ]),
+      sources: { building: { status: "fresh" } }
+    });
   });
 });
 
@@ -177,7 +236,6 @@ async function writeConsumerFiles(dir: string) {
         projects: [
           {
             href: "https://example.test/portfolio-presence",
-            label: "Portfolio Presence",
             name: "portfolio-presence"
           }
         ]
@@ -211,6 +269,7 @@ async function writeConsumerFiles(dir: string) {
   await writeFile(
     path.join(dir, "runtime.mjs"),
     `
+      import "./consumer.mjs";
       import {
         definePresence,
         memoryStore,

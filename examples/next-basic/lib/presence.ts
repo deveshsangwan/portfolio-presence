@@ -34,7 +34,6 @@ export const presence = definePresence({
           projects: [
             {
               href: "https://github.com/deveshsangwan/portfolio-presence",
-              label: "portfolio-presence",
               name: "portfolio-presence"
             }
           ]
