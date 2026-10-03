@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { act, createElement, StrictMode, useLayoutEffect } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PresenceSnapshot } from "../src";
 import {
@@ -217,6 +218,33 @@ describe("usePresence", () => {
     });
   });
 
+  it("hydrates a server snapshot without changing the first client render", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const renderStates: UsePresenceResult["status"][] = [];
+    const probe = createElement(HookProbe, {
+      onRender: (result) => {
+        renderStates.push(result.status);
+      },
+      options: { fetcher, initialSnapshot }
+    });
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(probe);
+    document.body.append(container);
+    const hydrationErrors = vi.spyOn(console, "error");
+
+    await act(async () => {
+      mountedRoots.add(hydrateRoot(container, probe));
+    });
+
+    expect(renderStates).toEqual(["success"]);
+    expect(readHookState(container)).toEqual({
+      generatedAt: initialSnapshot.generatedAt,
+      status: "success"
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(hydrationErrors).not.toHaveBeenCalled();
+  });
+
   it("lets consumers refresh during their layout effect", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       createSnapshotResponse(refreshedSnapshot)
@@ -396,6 +424,96 @@ describe("usePresence", () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
+  it("drops queued visibility work when the page hides again", async () => {
+    let visibilityState: DocumentVisibilityState = "visible";
+    vi.spyOn(document, "visibilityState", "get").mockImplementation(
+      () => visibilityState
+    );
+    const response = createDeferred<Response>();
+    const fetcher = vi.fn<typeof fetch>().mockReturnValue(response.promise);
+    let hookResult: UsePresenceResult | undefined;
+    await renderHook({
+      onRender: (result) => {
+        hookResult = result;
+      },
+      options: { fetcher, initialSnapshot }
+    });
+    let request: Promise<void> | undefined;
+    await act(async () => {
+      request = requireHookResult(hookResult).refresh();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      visibilityState = "hidden";
+      document.dispatchEvent(new Event("visibilitychange"));
+      visibilityState = "visible";
+      document.dispatchEvent(new Event("visibilitychange"));
+      visibilityState = "hidden";
+      document.dispatchEvent(new Event("visibilitychange"));
+      response.resolve(createSnapshotResponse(refreshedSnapshot));
+      await request;
+    });
+
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("shares the return refresh when focus arrives before visibility", async () => {
+    let visibilityState: DocumentVisibilityState = "visible";
+    vi.spyOn(document, "visibilityState", "get").mockImplementation(
+      () => visibilityState
+    );
+    const response = createDeferred<Response>();
+    const fetcher = vi.fn<typeof fetch>().mockReturnValue(response.promise);
+    let hookResult: UsePresenceResult | undefined;
+    await renderHook({
+      onRender: (result) => {
+        hookResult = result;
+      },
+      options: { fetcher, initialSnapshot }
+    });
+
+    await act(async () => {
+      visibilityState = "hidden";
+      document.dispatchEvent(new Event("visibilitychange"));
+      visibilityState = "visible";
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+      await Promise.resolve();
+    });
+    const request = requireHookResult(hookResult).refresh();
+
+    await act(async () => {
+      response.resolve(createSnapshotResponse(refreshedSnapshot));
+      await request;
+    });
+
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("shares endpoint revalidation with a consumer layout refresh", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
+      createSnapshotResponse(refreshedSnapshot)
+    );
+    const options = { fetcher, initialSnapshot };
+    const rendered = await renderHook({
+      endpoint: "/first",
+      options,
+      refreshOnLayout: true
+    });
+
+    await rendered.rerender({
+      endpoint: "/second",
+      options,
+      refreshOnLayout: true
+    });
+
+    expect(fetcher.mock.calls.map(([input]) => input)).toEqual([
+      "/first",
+      "/second"
+    ]);
+  });
+
   it("shares active work across manual, timer, focus, and visibility refreshes", async () => {
     vi.useFakeTimers();
     const response = createDeferred<Response>();
@@ -539,6 +657,60 @@ describe("usePresence", () => {
     });
 
     expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(readHookState(rendered.container).generatedAt).toBe(
+      postVisibleSnapshot.generatedAt
+    );
+  });
+
+  it("keeps current visibility work queued when an obsolete request settles", async () => {
+    let visibilityState: DocumentVisibilityState = "visible";
+    vi.spyOn(document, "visibilityState", "get").mockImplementation(
+      () => visibilityState
+    );
+    const firstResponse = createDeferred<Response>();
+    const secondResponse = createDeferred<Response>();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockReturnValueOnce(firstResponse.promise)
+      .mockReturnValueOnce(secondResponse.promise)
+      .mockResolvedValueOnce(createSnapshotResponse(postVisibleSnapshot));
+    let hookResult: UsePresenceResult | undefined;
+    const onRender = (result: UsePresenceResult) => {
+      hookResult = result;
+    };
+    const options = { fetcher, initialSnapshot, revalidateOnMount: true };
+    const rendered = await renderHook({
+      endpoint: "/first",
+      onRender,
+      options
+    });
+    const firstRequest = requireHookResult(hookResult).refresh();
+
+    await act(async () => {
+      visibilityState = "hidden";
+      document.dispatchEvent(new Event("visibilitychange"));
+      visibilityState = "visible";
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await rendered.rerender({ endpoint: "/second", onRender, options });
+    const secondRequest = requireHookResult(hookResult).refresh();
+
+    await act(async () => {
+      visibilityState = "hidden";
+      document.dispatchEvent(new Event("visibilitychange"));
+      visibilityState = "visible";
+      document.dispatchEvent(new Event("visibilitychange"));
+      firstResponse.resolve(createSnapshotResponse(initialSnapshot));
+      await firstRequest;
+      secondResponse.resolve(createSnapshotResponse(refreshedSnapshot));
+      await secondRequest;
+    });
+
+    expect(fetcher.mock.calls.map(([input]) => input)).toEqual([
+      "/first",
+      "/second",
+      "/second"
+    ]);
     expect(readHookState(rendered.container).generatedAt).toBe(
       postVisibleSnapshot.generatedAt
     );

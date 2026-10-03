@@ -45,7 +45,7 @@ export function usePresence(
     hasInitialSnapshot: options.initialSnapshot !== undefined,
     revalidateOnMount: options.revalidateOnMount === true
   });
-  const pendingLifecycleRefresh = useRef(false);
+  const pendingLifecycleRefresh = useRef<ActivePresenceRequest | null>(null);
   const requestConfig = useRef({
     endpoint,
     fetcher: options.fetcher
@@ -138,19 +138,19 @@ export function usePresence(
       return;
     }
 
-    if (pendingLifecycleRefresh.current) {
+    if (pendingLifecycleRefresh.current === request) {
       return;
     }
 
-    pendingLifecycleRefresh.current = true;
+    pendingLifecycleRefresh.current = request;
     void request.promise.then(() => {
-      if (!pendingLifecycleRefresh.current) {
+      if (pendingLifecycleRefresh.current !== request) {
         return;
       }
 
-      pendingLifecycleRefresh.current = false;
+      pendingLifecycleRefresh.current = null;
 
-      if (isMounted.current) {
+      if (isMounted.current && document.visibilityState !== "hidden") {
         void refresh();
       }
     });
@@ -161,12 +161,13 @@ export function usePresence(
 
     return () => {
       isMounted.current = false;
-      pendingLifecycleRefresh.current = false;
+      pendingLifecycleRefresh.current = null;
       cancelActiveRequest();
     };
   }, [cancelActiveRequest]);
 
-  useEffect(() => {
+  // Update request ownership before consumers can refresh in their layout effects.
+  useLayoutEffect(() => {
     const previousConfig = requestConfig.current;
     const hasRequestConfigChanged =
       previousConfig.endpoint !== endpoint ||
@@ -178,7 +179,7 @@ export function usePresence(
     };
 
     if (hasRequestConfigChanged) {
-      pendingLifecycleRefresh.current = false;
+      pendingLifecycleRefresh.current = null;
       cancelActiveRequest();
       void refresh();
       return;
@@ -225,6 +226,7 @@ export function usePresence(
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         wasPageHidden = true;
+        pendingLifecycleRefresh.current = null;
         stopInterval();
         return;
       }
@@ -241,6 +243,11 @@ export function usePresence(
 
     const handleFocus = () => {
       if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      if (wasPageHidden) {
+        handleVisibilityChange();
         return;
       }
 
