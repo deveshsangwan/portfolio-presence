@@ -8,7 +8,7 @@ Full documentation: https://deveshsangwan.github.io/portfolio-presence/
 public JSON snapshot you can render however you want. It is designed for
 portfolio cards like:
 
-- Building: latest selected GitHub repo
+- Building: latest selected GitHub or WakaTime project
 - Playing: latest game recorded by an iOS Shortcut
 - Listening to: Last.fm recent track
 
@@ -84,6 +84,33 @@ export const presence = definePresence({
   }
 });
 ```
+
+WakaTime can provide the Building card instead of GitHub. Configure it in the
+shared server-side module:
+
+```ts
+import { definePresence, wakatimeSource } from "portfolio-presence";
+
+export const presence = definePresence({
+  sources: {
+    building: wakatimeSource({
+      apiKey: process.env.WAKATIME_API_KEY ?? "",
+      projects: [
+        "portfolio-presence",
+        {
+          name: "private-client-platform",
+          label: "Customer Platform",
+          href: "https://example.com/products/platform"
+        }
+      ]
+    })
+  }
+});
+```
+
+Only allowlisted projects can appear. Use a public `label` whenever the
+WakaTime project name is private. The source calls WakaTime's Projects endpoint
+and does not request heartbeat or filename data.
 
 `cache.ttlSeconds` controls snapshot freshness and is passed to the configured
 store as its physical TTL. `cache.lastGoodTtlSeconds` is optional: omit it to
@@ -197,6 +224,8 @@ export function PresencePills() {
 - Private GitHub repos are skipped unless `allowPrivate: true` is set in allowlist mode.
 - Private repo names are not exposed by default.
 - Last.fm supports blocked artists and blocked tracks.
+- WakaTime requires an explicit project allowlist and supports public aliases.
+- WakaTime API keys must stay in server-only environment variables.
 - Played ingestion requires a secret in the Next.js helper.
 - Public snapshots never include raw provider payloads.
 - Provider failures use stale last-good data or fallbacks instead of breaking the page.
@@ -206,6 +235,7 @@ export function PresencePills() {
 Included:
 
 - GitHub source for recently building
+- WakaTime source for allowlisted project activity
 - Last.fm source for recently listening
 - Recordable played-event source for iOS Shortcuts
 - Framework-neutral cache/store model
@@ -214,7 +244,6 @@ Included:
 
 Skipped for v1:
 
-- WakaTime
 - Steam, Xbox, PlayStation, Discord, Spotify, Apple Music
 - OAuth flows
 - Realtime updates

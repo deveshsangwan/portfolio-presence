@@ -5,7 +5,7 @@ portfolio sites.
 
 It is designed for cards like:
 
-- **Building** from selected GitHub repositories
+- **Building** from selected GitHub repositories or WakaTime projects
 - **Playing** from an iOS Shortcut that records game launches
 - **Listening to** from Last.fm recent tracks
 

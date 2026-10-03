@@ -68,6 +68,31 @@ Render the snapshot however your portfolio wants:
 const snapshot = await presence.getSnapshot();
 ```
 
+To use WakaTime for the Building card, configure the shared server-side module
+with an allowlisted WakaTime source:
+
+```ts
+import { definePresence, wakatimeSource } from "portfolio-presence";
+
+export const presence = definePresence({
+  sources: {
+    building: wakatimeSource({
+      apiKey: process.env.WAKATIME_API_KEY ?? "",
+      projects: [
+        {
+          name: "private-client-platform",
+          label: "Customer Platform",
+          href: "https://example.com/products/platform"
+        }
+      ]
+    })
+  }
+});
+```
+
+Keep `WAKATIME_API_KEY` on the server. Do not prefix it with `NEXT_PUBLIC_` or
+send it to the browser.
+
 `cache.ttlSeconds` is forwarded to the configured store. For Redis-backed
 stores, make sure the store translates it to the client's expiry option. Add
 `lastGoodTtlSeconds` when last-good recovery data should expire; omit it to

@@ -26,6 +26,7 @@ export default defineConfig({
       {
         items: [
           { link: "/providers/github", text: "GitHub" },
+          { link: "/providers/wakatime", text: "WakaTime" },
           { link: "/providers/lastfm", text: "Last.fm" },
           { link: "/providers/played-events", text: "Played Events" }
         ],

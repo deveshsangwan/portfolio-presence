@@ -18,7 +18,7 @@ The v1 card kinds are:
 ## Sources
 
 Sources know how to fetch or record activity and return one normalized card.
-The built-in v1 sources are GitHub, Last.fm, and played events.
+The built-in sources are GitHub, WakaTime, Last.fm, and played events.
 
 ## Store
 
