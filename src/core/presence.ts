@@ -145,7 +145,7 @@ class Presence implements PresenceClient {
       return {};
     }
 
-    const { lastGoodKey, lastGoodTtlSeconds, store } = this.cache;
+    const { lastGoodKey, store } = this.cache;
     const storedEntries = await Promise.all(
       this.resolutionPlan.map(async ({ kind }) => ({
         card: await store.get<PresenceCard>(createLastGoodKey(lastGoodKey, kind)),
@@ -167,31 +167,20 @@ class Presence implements PresenceClient {
       return cards;
     }
 
-    const legacyCards = this.resolutionPlan.flatMap(({ kind }) => {
+    // The store cannot preserve a legacy entry's remaining TTL or atomically
+    // migrate it without replacing a concurrent fresh write, so only read it.
+    for (const { kind } of this.resolutionPlan) {
       if (cards[kind]) {
-        return [];
+        continue;
       }
 
       const card = findFreshCard(legacySnapshot, kind);
-      return card ? [card] : [];
-    });
 
-    for (const card of legacyCards) {
-      cards[card.kind] = card;
+      if (card) {
+        cards[kind] = card;
+      }
     }
 
-    await Promise.all(
-      legacyCards.map((card) =>
-        setStoreValue(
-          store,
-          createLastGoodKey(lastGoodKey, card.kind),
-          card,
-          lastGoodTtlSeconds
-        )
-      )
-    );
-
-    await store.delete(lastGoodKey);
     return cards;
   }
 
