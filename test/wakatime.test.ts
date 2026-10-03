@@ -49,9 +49,11 @@ describe("wakatimeSource", () => {
 
   it.each([
     "https://example.test/products/platform",
-    "https://example.test/products/customer%20platform?view=public%20details"
+    "https://example.test/products/customer%20platform?view=public%20details",
+    "https://example.test/products/platform?project=customer+platform",
+    "https://example.test/projects/private+client+platform"
   ])("maps an allowlisted private name to its public alias and safe link %s", async (href) => {
-    const privateName = "secret-client-platform";
+    const privateName = "private client platform";
     const fetchMock: FetchLike = async () =>
       Response.json({
         data: [
@@ -142,6 +144,30 @@ describe("wakatimeSource", () => {
             href,
             label: "Customer Platform",
             name: "private-client-platform"
+          }
+        ]
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: "invalid_wakatime_project",
+        message: "WakaTime project links must not contain an aliased project name.",
+        status: 400
+      })
+    );
+  });
+
+  it.each([
+    "https://example.test/projects?project=private+client+platform",
+    "https://example.test/projects?PRIVATE+CLIENT+PLATFORM=public"
+  ])("rejects a private project name in a form-encoded query %s", (href) => {
+    expect(() =>
+      wakatimeSource({
+        apiKey: "secret",
+        projects: [
+          {
+            href,
+            label: "Customer Platform",
+            name: "private client platform"
           }
         ]
       })

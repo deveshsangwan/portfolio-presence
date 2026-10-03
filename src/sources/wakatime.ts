@@ -307,10 +307,17 @@ function normalizeProject(project: unknown): NormalizedWakaTimeProject {
     }
 
     const normalizedName = name.toLowerCase();
+    const queryParameters = new URL(safeHref).searchParams;
+    const hasPrivateQueryName = Array.from(queryParameters).some(
+      ([key, value]) =>
+        key.toLowerCase().includes(normalizedName) ||
+        value.toLowerCase().includes(normalizedName)
+    );
 
     if (
       safeHref.toLowerCase().includes(normalizedName) ||
-      decodedHref.toLowerCase().includes(normalizedName)
+      decodedHref.toLowerCase().includes(normalizedName) ||
+      hasPrivateQueryName
     ) {
       throw createInvalidWakaTimeProjectError(
         "WakaTime project links must not contain an aliased project name."
