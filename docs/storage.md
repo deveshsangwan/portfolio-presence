@@ -38,5 +38,10 @@ fresh card leaves recovery data and its expiry unchanged. Each kind uses a
 derived key in the form `<lastGoodKey>:<kind>`, so one kind cannot renew or
 overwrite another kind's recovery entry. A zero last-good TTL clears the
 derived keys and the legacy aggregate key.
+
+Legacy aggregate recovery entries remain readable without being rewritten or
+moved. Their original store expiry stays in effect, and current per-kind entries
+take precedence. Only newly fresh source cards write per-kind recovery entries.
+
 The snapshot also contains an application-level `expiresAt` value, which prevents
 stale reads from stores that cannot enforce physical TTLs.

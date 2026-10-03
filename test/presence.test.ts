@@ -687,7 +687,131 @@ describe("definePresence", () => {
     expect(snapshot.sources.building.status).toBe("error");
   });
 
-  it("migrates fresh cards from legacy aggregate recovery storage", async () => {
+  it("keeps the original expiry of legacy recovery during failed refreshes", async () => {
+    vi.useFakeTimers();
+
+    try {
+      vi.setSystemTime(new Date("2026-06-13T10:00:00.000Z"));
+
+      const store = memoryStore();
+      const legacySnapshot = createBuildingSnapshot(freshBuildingCard, "fresh");
+
+      await store.set("last-good", legacySnapshot, { ttlSeconds: 60 });
+
+      const presence = definePresence({
+        cache: {
+          lastGoodKey: "last-good",
+          lastGoodTtlSeconds: 60,
+          store,
+          ttlSeconds: 0
+        },
+        sources: {
+          building: scriptedSource<BuildingPresenceCard>("building", "test", [
+            new Error("Provider down"),
+            new Error("Provider down")
+          ])
+        }
+      });
+
+      vi.advanceTimersByTime(59_000);
+      const beforeExpiry = await presence.getSnapshot({ bypassCache: true });
+
+      expect(beforeExpiry.sources.building.status).toBe("stale");
+
+      vi.advanceTimersByTime(1_000);
+      const afterExpiry = await presence.getSnapshot({ bypassCache: true });
+
+      expect(afterExpiry.cards).toEqual([]);
+      expect(afterExpiry.sources.building.status).toBe("error");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not let a delayed legacy read overwrite a newer fresh card", async () => {
+    const storage = memoryStore();
+    const legacySnapshot = createBuildingSnapshot(freshBuildingCard, "fresh");
+    let releaseLegacyRead = () => {};
+    let notifyLegacyRead = () => {};
+    const legacyReadStarted = new Promise<void>((resolve) => {
+      notifyLegacyRead = resolve;
+    });
+    const legacyReadGate = new Promise<void>((resolve) => {
+      releaseLegacyRead = resolve;
+    });
+    let hasDelayedLegacyRead = false;
+    const store: PresenceStore = {
+      delete: storage.delete,
+      set: storage.set,
+      async get<TValue>(key: string) {
+        const value = await storage.get<TValue>(key);
+
+        if (key === "last-good" && !hasDelayedLegacyRead) {
+          hasDelayedLegacyRead = true;
+          notifyLegacyRead();
+          await legacyReadGate;
+        }
+
+        return value;
+      }
+    };
+
+    await storage.set("last-good", legacySnapshot);
+
+    const cache = { lastGoodKey: "last-good", store, ttlSeconds: 0 };
+    const failingPresence = definePresence({
+      cache,
+      sources: {
+        building: scriptedSource<BuildingPresenceCard>("building", "test", [
+          new Error("Provider down")
+        ])
+      }
+    });
+    const freshPresence = definePresence({
+      cache,
+      sources: {
+        building: scriptedSource<BuildingPresenceCard>("building", "test", [
+          { ...freshBuildingCard, title: "Newer Project" }
+        ])
+      }
+    });
+
+    const failedRefresh = failingPresence.getSnapshot({ bypassCache: true });
+    await legacyReadStarted;
+    await freshPresence.getSnapshot({ bypassCache: true });
+    releaseLegacyRead();
+    await failedRefresh;
+
+    await expect(storage.get("last-good:building")).resolves.toMatchObject({
+      title: "Newer Project"
+    });
+  });
+
+  it("does not persist legacy recovery during an empty refresh", async () => {
+    const store = recordingStore();
+
+    await store.set("last-good", createBuildingSnapshot(freshBuildingCard, "fresh"));
+    store.writes.length = 0;
+
+    const presence = definePresence({
+      cache: {
+        lastGoodKey: "last-good",
+        store,
+        ttlSeconds: 0
+      },
+      sources: {
+        building: scriptedSource<BuildingPresenceCard>("building", "test", [null])
+      }
+    });
+
+    const snapshot = await presence.getSnapshot({ bypassCache: true });
+
+    expect(snapshot.sources.building.status).toBe("empty");
+    expect(store.writes).toEqual([]);
+    expect(store.deletedKeys).not.toContain("last-good");
+  });
+
+  it("reads fresh cards from legacy aggregate recovery storage", async () => {
     const store = memoryStore();
 
     await store.set("last-good", createBuildingSnapshot(freshBuildingCard, "fresh"));
@@ -711,10 +835,10 @@ describe("definePresence", () => {
       stale: true,
       title: "Investment Sync"
     });
-    await expect(store.get("last-good")).resolves.toBeNull();
-    await expect(store.get("last-good:building")).resolves.toMatchObject({
-      title: "Investment Sync"
-    });
+    await expect(store.get("last-good")).resolves.toEqual(
+      createBuildingSnapshot(freshBuildingCard, "fresh")
+    );
+    await expect(store.get("last-good:building")).resolves.toBeNull();
   });
 
   it("fills missing per-kind recovery from legacy aggregate storage", async () => {
@@ -759,13 +883,13 @@ describe("definePresence", () => {
         expect.objectContaining({ kind: "listening", title: "Second Track" })
       ])
     );
-    await expect(store.get("last-good")).resolves.toBeNull();
+    await expect(store.get("last-good")).resolves.toMatchObject({
+      cards: [legacyListeningCard]
+    });
     await expect(store.get("last-good:building")).resolves.toMatchObject({
       title: "Investment Sync"
     });
-    await expect(store.get("last-good:listening")).resolves.toMatchObject({
-      title: "Second Track"
-    });
+    await expect(store.get("last-good:listening")).resolves.toBeNull();
   });
 
   it("clears existing recovery data when the last-good ttl is zero", async () => {
