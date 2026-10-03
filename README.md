@@ -85,22 +85,26 @@ export const presence = definePresence({
 });
 ```
 
-WakaTime can provide the Building card instead of GitHub. Keep the API key in
-this server-side module:
+WakaTime can provide the Building card instead of GitHub. Configure it in the
+shared server-side module:
 
 ```ts
-import { wakatimeSource } from "portfolio-presence";
+import { definePresence, wakatimeSource } from "portfolio-presence";
 
-const building = wakatimeSource({
-  apiKey: process.env.WAKATIME_API_KEY ?? "",
-  projects: [
-    "portfolio-presence",
-    {
-      name: "private-client-platform",
-      label: "Customer Platform",
-      href: "https://example.com/products/platform"
-    }
-  ]
+export const presence = definePresence({
+  sources: {
+    building: wakatimeSource({
+      apiKey: process.env.WAKATIME_API_KEY ?? "",
+      projects: [
+        "portfolio-presence",
+        {
+          name: "private-client-platform",
+          label: "Customer Platform",
+          href: "https://example.com/products/platform"
+        }
+      ]
+    })
+  }
 });
 ```
 

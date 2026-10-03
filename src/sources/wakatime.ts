@@ -295,10 +295,27 @@ function normalizeProject(project: unknown): NormalizedWakaTimeProject {
   const href = typeof project.href === "string" ? project.href : undefined;
   const safeHref = isHttpUrl(href) ? href : undefined;
 
-  if (publicLabel && safeHref?.toLowerCase().includes(name.toLowerCase())) {
-    throw createInvalidWakaTimeProjectError(
-      "WakaTime project links must not contain an aliased project name."
-    );
+  if (publicLabel && safeHref) {
+    let decodedHref = safeHref;
+
+    try {
+      decodedHref = decodeURIComponent(safeHref);
+    } catch {
+      throw createInvalidWakaTimeProjectError(
+        "WakaTime aliased project links must use valid percent encoding."
+      );
+    }
+
+    const normalizedName = name.toLowerCase();
+
+    if (
+      safeHref.toLowerCase().includes(normalizedName) ||
+      decodedHref.toLowerCase().includes(normalizedName)
+    ) {
+      throw createInvalidWakaTimeProjectError(
+        "WakaTime project links must not contain an aliased project name."
+      );
+    }
   }
 
   return withoutUndefined({

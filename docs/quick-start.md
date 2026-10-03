@@ -68,21 +68,25 @@ Render the snapshot however your portfolio wants:
 const snapshot = await presence.getSnapshot();
 ```
 
-To use WakaTime for the Building card, replace the GitHub source with an
-allowlisted WakaTime source:
+To use WakaTime for the Building card, configure the shared server-side module
+with an allowlisted WakaTime source:
 
 ```ts
-import { wakatimeSource } from "portfolio-presence";
+import { definePresence, wakatimeSource } from "portfolio-presence";
 
-const building = wakatimeSource({
-  apiKey: process.env.WAKATIME_API_KEY ?? "",
-  projects: [
-    {
-      name: "private-client-platform",
-      label: "Customer Platform",
-      href: "https://example.com/products/platform"
-    }
-  ]
+export const presence = definePresence({
+  sources: {
+    building: wakatimeSource({
+      apiKey: process.env.WAKATIME_API_KEY ?? "",
+      projects: [
+        {
+          name: "private-client-platform",
+          label: "Customer Platform",
+          href: "https://example.com/products/platform"
+        }
+      ]
+    })
+  }
 });
 ```
 

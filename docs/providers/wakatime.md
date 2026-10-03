@@ -32,7 +32,8 @@ The card uses the configured label and never copies WakaTime project metadata.
 
 Configured links must use HTTP or HTTPS. The source drops other URL schemes.
 For an aliased project, the link must not contain the raw WakaTime project name.
-This comparison is case-insensitive.
+The source compares the link as written and after one percent-decoding pass,
+case-insensitively. Aliased links with malformed percent encoding are rejected.
 
 ## Authentication
 

@@ -10,7 +10,8 @@ The package defaults to public-display safety.
   title.
 - Private WakaTime project names should use a public `label` and optional
   HTTP(S) `href`.
-- An aliased WakaTime link cannot contain the raw project name.
+- An aliased WakaTime link cannot contain the raw project name, including
+  percent-encoded names.
 - WakaTime API keys belong in server-only environment variables, never browser
   bundles.
 - Last.fm supports blocked artists and blocked tracks.

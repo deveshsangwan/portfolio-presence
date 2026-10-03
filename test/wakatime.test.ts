@@ -47,7 +47,10 @@ describe("wakatimeSource", () => {
     });
   });
 
-  it("maps an allowlisted private name to its public alias and safe link", async () => {
+  it.each([
+    "https://example.test/products/platform",
+    "https://example.test/products/customer%20platform?view=public%20details"
+  ])("maps an allowlisted private name to its public alias and safe link %s", async (href) => {
     const privateName = "secret-client-platform";
     const fetchMock: FetchLike = async () =>
       Response.json({
@@ -65,7 +68,7 @@ describe("wakatimeSource", () => {
       fetch: fetchMock,
       projects: [
         {
-          href: "https://example.test/products/platform",
+          href,
           label: "Customer Platform",
           name: privateName
         }
@@ -75,7 +78,7 @@ describe("wakatimeSource", () => {
     const card = await source.getCard(context);
 
     expect(card).toEqual({
-      href: "https://example.test/products/platform",
+      href,
       kind: "building",
       label: "Building",
       source: "wakatime",
@@ -126,13 +129,17 @@ describe("wakatimeSource", () => {
     );
   });
 
-  it("rejects an aliased link that contains the private project name", () => {
+  it.each([
+    "https://example.test/projects/PRIVATE-CLIENT-PLATFORM",
+    "https://example.test/projects/PRIVATE%2DCLIENT%2DPLATFORM",
+    "https://example.test/projects?project=PRIVATE%2DCLIENT%2DPLATFORM"
+  ])("rejects an aliased link that contains the private project name %s", (href) => {
     expect(() =>
       wakatimeSource({
         apiKey: "secret",
         projects: [
           {
-            href: "https://example.test/projects/PRIVATE-CLIENT-PLATFORM",
+            href,
             label: "Customer Platform",
             name: "private-client-platform"
           }
@@ -145,6 +152,78 @@ describe("wakatimeSource", () => {
         status: 400
       })
     );
+  });
+
+  it("rejects a raw private project name containing a percent escape", () => {
+    expect(() =>
+      wakatimeSource({
+        apiKey: "secret",
+        projects: [
+          {
+            href: "https://example.test/projects/private%41platform",
+            label: "Customer Platform",
+            name: "private%41platform"
+          }
+        ]
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: "invalid_wakatime_project",
+        message: "WakaTime project links must not contain an aliased project name.",
+        status: 400
+      })
+    );
+  });
+
+  it.each([
+    "https://example.test/products/platform%ZZ",
+    "https://example.test/products/platform?view=%2"
+  ])("rejects an aliased link with malformed percent encoding %s", (href) => {
+    expect(() =>
+      wakatimeSource({
+        apiKey: "secret",
+        projects: [
+          {
+            href,
+            label: "Customer Platform",
+            name: "private-client-platform"
+          }
+        ]
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: "invalid_wakatime_project",
+        status: 400
+      })
+    );
+  });
+
+  it.each([
+    "https://example.test/projects/public%2Dclient%2Dplatform",
+    "https://example.test/projects/public%ZZplatform"
+  ])("preserves an unaliased public project link %s", async (href) => {
+    const source = wakatimeSource({
+      apiKey: "secret",
+      fetch: async () =>
+        Response.json({
+          data: [
+            {
+              last_heartbeat_at: "2026-06-13T10:00:00Z",
+              name: "public-client-platform"
+            }
+          ]
+        }),
+      projects: [{ href, name: "public-client-platform" }]
+    });
+
+    await expect(source.getCard(context)).resolves.toEqual({
+      href,
+      kind: "building",
+      label: "Building",
+      source: "wakatime",
+      title: "Public Client Platform",
+      updatedAt: "2026-06-13T10:00:00.000Z"
+    });
   });
 
   it("drops unsafe project links", async () => {
