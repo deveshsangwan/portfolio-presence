@@ -154,6 +154,7 @@ export interface PresenceStore {
 
 export interface PresenceCacheOptions {
   key?: string;
+  /** Base key for per-kind last-good entries. Each stored key appends the kind. */
   lastGoodKey?: string;
   store?: PresenceStore;
   /**
@@ -163,9 +164,9 @@ export interface PresenceCacheOptions {
    */
   ttlSeconds?: number;
   /**
-   * Optional expiry for the last-good fallback snapshot. Omit it to retain
-   * last-good data indefinitely; zero disables last-good persistence. Must be
-   * a finite, non-negative number.
+   * Optional expiry applied independently to each last-good card. Omit it to
+   * retain recovery data indefinitely; zero clears and disables last-good
+   * persistence. Must be a finite, non-negative number.
    */
   lastGoodTtlSeconds?: number;
 }

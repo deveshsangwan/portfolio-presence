@@ -41,6 +41,8 @@ interface NormalizedCache {
   ttlSeconds: number;
 }
 
+type LastGoodCards = Partial<Record<PresenceKind, PresenceCard>>;
+
 export function definePresence(config: PresenceConfig): PresenceClient {
   return new Presence(config);
 }
@@ -57,6 +59,10 @@ class Presence implements PresenceClient {
   async getSnapshot(options: GetPresenceSnapshotOptions = {}) {
     const now = options.now ?? new Date();
 
+    if (this.cache?.lastGoodTtlSeconds === 0) {
+      await this.clearLastGoodCards();
+    }
+
     if (!options.bypassCache) {
       const cached = await this.readFreshCache(now);
 
@@ -65,7 +71,7 @@ class Presence implements PresenceClient {
       }
     }
 
-    const lastGood = await this.readLastGood();
+    const lastGood = await this.readLastGoodCards();
     const context = this.createContext(now);
     const cards: PresenceCard[] = [];
     const states = createEmptyStates();
@@ -137,18 +143,67 @@ class Presence implements PresenceClient {
     return entry.snapshot;
   }
 
-  private async readLastGood() {
-    if (!this.cache) {
-      return null;
+  private async readLastGoodCards(): Promise<LastGoodCards> {
+    if (!this.cache || this.cache.lastGoodTtlSeconds === 0) {
+      return {};
     }
 
-    return this.cache.store.get<PresenceSnapshot>(this.cache.lastGoodKey);
+    const { lastGoodKey, store } = this.cache;
+    const storedEntries = await Promise.all(
+      PRESENCE_ORDER.map(async (kind) => ({
+        card: await store.get<PresenceCard>(createLastGoodKey(lastGoodKey, kind)),
+        kind
+      }))
+    );
+
+    const cards: LastGoodCards = {};
+
+    for (const { card, kind } of storedEntries) {
+      if (card) {
+        cards[kind] = card;
+      }
+    }
+
+    const legacySnapshot = await store.get<PresenceSnapshot>(lastGoodKey);
+
+    if (!legacySnapshot) {
+      return cards;
+    }
+
+    // The store cannot preserve a legacy entry's remaining TTL or atomically
+    // migrate it without replacing a concurrent fresh write, so only read it.
+    for (const kind of PRESENCE_ORDER) {
+      if (cards[kind]) {
+        continue;
+      }
+
+      const card = findFreshCard(legacySnapshot, kind);
+
+      if (card) {
+        cards[kind] = card;
+      }
+    }
+
+    return cards;
+  }
+
+  private async clearLastGoodCards() {
+    if (!this.cache) {
+      return;
+    }
+
+    const { lastGoodKey, store } = this.cache;
+
+    await Promise.all([
+      store.delete(lastGoodKey),
+      ...PRESENCE_ORDER.map((kind) => store.delete(createLastGoodKey(lastGoodKey, kind)))
+    ]);
   }
 
   private async resolveKind(
     kind: PresenceKind,
     context: PresenceContext,
-    lastGood: PresenceSnapshot | null
+    lastGood: LastGoodCards
   ) {
     const source = this.config.sources?.[kind];
 
@@ -202,7 +257,7 @@ class Presence implements PresenceClient {
         source: source.source
       });
 
-      const staleCard = lastGood?.cards.find((card) => card.kind === kind);
+      const staleCard = lastGood[kind];
 
       if (staleCard) {
         const card = { ...staleCard, stale: true } as PresenceCard;
@@ -248,21 +303,35 @@ class Presence implements PresenceClient {
       return;
     }
 
+    const { key, lastGoodKey, lastGoodTtlSeconds, store, ttlSeconds } = this.cache;
+
     await setStoreValue<SnapshotCacheEntry>(
-      this.cache.store,
-      this.cache.key,
+      store,
+      key,
       {
-        expiresAt: new Date(now.getTime() + this.cache.ttlSeconds * 1000).toISOString(),
+        expiresAt: new Date(now.getTime() + ttlSeconds * 1000).toISOString(),
         snapshot
       },
-      this.cache.ttlSeconds
+      ttlSeconds
     );
 
-    await setStoreValue<PresenceSnapshot>(
-      this.cache.store,
-      this.cache.lastGoodKey,
-      snapshot,
-      this.cache.lastGoodTtlSeconds
+    if (lastGoodTtlSeconds === 0) {
+      return;
+    }
+
+    const freshCards = snapshot.cards.filter(
+      (card) => snapshot.sources[card.kind].status === "fresh"
+    );
+
+    await Promise.all(
+      freshCards.map((card) =>
+        setStoreValue(
+          store,
+          createLastGoodKey(lastGoodKey, card.kind),
+          card,
+          lastGoodTtlSeconds
+        )
+      )
     );
   }
 }
@@ -273,6 +342,18 @@ function createEmptyStates(): Record<PresenceKind, PresenceSourceState> {
     listening: { status: "disabled" },
     playing: { status: "disabled" }
   };
+}
+
+function createLastGoodKey(baseKey: string, kind: PresenceKind) {
+  return `${baseKey}:${kind}`;
+}
+
+function findFreshCard(snapshot: PresenceSnapshot, kind: PresenceKind) {
+  if (snapshot.sources[kind].status !== "fresh") {
+    return null;
+  }
+
+  return snapshot.cards.find((card) => card.kind === kind) ?? null;
 }
 
 function isRecordablePlayingSource(
@@ -286,15 +367,25 @@ function normalizeCache(cache: false | PresenceCacheOptions | undefined) {
     return undefined;
   }
 
+  const key = cache?.key ?? DEFAULT_CACHE_KEY;
+  const lastGoodKey = cache?.lastGoodKey ?? DEFAULT_LAST_GOOD_KEY;
   const ttlSeconds = cache?.ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS;
   const lastGoodTtlSeconds = cache?.lastGoodTtlSeconds;
+  const recoveryKeys = [
+    lastGoodKey,
+    ...PRESENCE_ORDER.map((kind) => createLastGoodKey(lastGoodKey, kind))
+  ];
+
+  if (recoveryKeys.includes(key)) {
+    throw new RangeError("Snapshot cache key must not overlap last-good recovery keys.");
+  }
 
   assertValidTtlSeconds(ttlSeconds);
   assertValidTtlSeconds(lastGoodTtlSeconds);
 
   return {
-    key: cache?.key ?? DEFAULT_CACHE_KEY,
-    lastGoodKey: cache?.lastGoodKey ?? DEFAULT_LAST_GOOD_KEY,
+    key,
+    lastGoodKey,
     lastGoodTtlSeconds,
     store: cache?.store ?? memoryStore(),
     ttlSeconds

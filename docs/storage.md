@@ -24,8 +24,8 @@ storage you already run for your portfolio.
 The package owns the cache policy and passes it to `PresenceStore.set`:
 
 - `cache.ttlSeconds` expires the regular snapshot cache. The default is 60 seconds.
-- `cache.lastGoodTtlSeconds` optionally expires the last-good fallback snapshot.
-  Omit it to keep fallback data indefinitely.
+- `cache.lastGoodTtlSeconds` optionally expires last-good recovery data. Omit it
+  to keep recovery data indefinitely.
 - `playedEventSource({ ttlSeconds })` optionally expires the last recorded game.
 - A TTL of `0` means the corresponding key is not retained.
 - TTLs must be finite, non-negative numbers.
@@ -33,5 +33,15 @@ The package owns the cache policy and passes it to `PresenceStore.set`:
 The store adapter owns the backend-specific operation. For example, a Redis
 adapter should translate a positive `ttlSeconds` into its client's expiry option
 (such as `EX`) and should write without an expiry when the option is omitted.
+Only fresh source cards update last-good recovery data. A refresh without a
+fresh card leaves recovery data and its expiry unchanged. Each kind uses a
+derived key in the form `<lastGoodKey>:<kind>`, so one kind cannot renew or
+overwrite another kind's recovery entry. A zero last-good TTL clears the
+derived keys and the legacy aggregate key.
+
+Legacy aggregate recovery entries remain readable without being rewritten or
+moved. Their original store expiry stays in effect, and current per-kind entries
+take precedence. Only newly fresh source cards write per-kind recovery entries.
+
 The snapshot also contains an application-level `expiresAt` value, which prevents
 stale reads from stores that cannot enforce physical TTLs.
