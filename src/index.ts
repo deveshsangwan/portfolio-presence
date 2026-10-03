@@ -25,6 +25,7 @@ export type {
   PresenceLogger,
   PresenceSnapshot,
   PresenceSource,
+  PresenceSources,
   PresenceSourceState,
   PresenceSourceStatus,
   PresenceStore,

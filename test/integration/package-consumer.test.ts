@@ -184,6 +184,36 @@ async function writeConsumerFiles(dir: string) {
   );
 
   await writeFile(
+    path.join(dir, "custom-sources.ts"),
+    `
+      import {
+        definePresence,
+        type PresenceKind,
+        type PresenceSource,
+        type PresenceSources
+      } from "portfolio-presence";
+
+      const sources: PresenceSources = {
+        building: customSource("building"),
+        listening: customSource("listening"),
+        playing: customSource("playing")
+      };
+
+      definePresence({ cache: false, sources });
+
+      function customSource(kind: PresenceKind): PresenceSource {
+        return {
+          kind,
+          source: "custom",
+          async getCard() {
+            return null;
+          }
+        };
+      }
+    `
+  );
+
+  await writeFile(
     path.join(dir, "consumer.tsx"),
     `
       import { usePresence } from "portfolio-presence/react";

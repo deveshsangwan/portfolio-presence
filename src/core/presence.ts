@@ -1,13 +1,14 @@
-import { getErrorMessage, PresenceError } from "./errors";
+import { PresenceError } from "./errors";
+import {
+  normalizeResolutionPlan,
+  resolvePresenceSnapshot,
+  type RecoveryCards,
+  type ResolutionPlan
+} from "./resolution";
 import { assertValidTtlSeconds, memoryStore, setStoreValue } from "./store";
 import type {
-  BuildingFallback,
-  BuildingPresenceCard,
+  FetchLike,
   GetPresenceSnapshotOptions,
-  ListeningFallback,
-  ListeningPresenceCard,
-  PlayingFallback,
-  PlayingPresenceCard,
   PlayedInput,
   PresenceCacheOptions,
   PresenceCard,
@@ -15,13 +16,13 @@ import type {
   PresenceConfig,
   PresenceContext,
   PresenceKind,
+  PresenceLogger,
   PresenceSnapshot,
   PresenceSource,
-  PresenceSourceState,
   PresenceStore,
   RecordablePlayingSource
 } from "./types";
-import { assertFetch, dateToIso, withoutUndefined } from "./utils";
+import { assertFetch, withoutUndefined } from "./utils";
 
 const DEFAULT_CACHE_KEY = "portfolio-presence:snapshot";
 const DEFAULT_LAST_GOOD_KEY = "portfolio-presence:snapshot:last-good";
@@ -41,19 +42,30 @@ interface NormalizedCache {
   ttlSeconds: number;
 }
 
-type LastGoodCards = Partial<Record<PresenceKind, PresenceCard>>;
+interface NormalizedPresenceConfig {
+  cache: NormalizedCache | undefined;
+  fetch: FetchLike | undefined;
+  logger: PresenceLogger | undefined;
+  resolutionPlan: ResolutionPlan;
+}
 
 export function definePresence(config: PresenceConfig): PresenceClient {
-  return new Presence(config);
+  return new Presence(normalizePresenceConfig(config));
 }
 
 class Presence implements PresenceClient {
   private readonly cache: NormalizedCache | undefined;
-  private readonly config: PresenceConfig;
+  private readonly fetch: FetchLike | undefined;
+  private readonly logger: PresenceLogger | undefined;
+  private readonly playingSource: PresenceSource | null;
+  private readonly resolutionPlan: ResolutionPlan;
 
-  constructor(config: PresenceConfig) {
-    this.config = config;
-    this.cache = normalizeCache(config.cache);
+  constructor(config: NormalizedPresenceConfig) {
+    this.cache = config.cache;
+    this.fetch = config.fetch;
+    this.logger = config.logger;
+    this.playingSource = config.resolutionPlan[1].source;
+    this.resolutionPlan = config.resolutionPlan;
   }
 
   async getSnapshot(options: GetPresenceSnapshotOptions = {}) {
@@ -72,41 +84,28 @@ class Presence implements PresenceClient {
     }
 
     const lastGood = await this.readLastGoodCards();
-    const context = this.createContext(now);
-    const cards: PresenceCard[] = [];
-    const states = createEmptyStates();
-
-    for (const kind of PRESENCE_ORDER) {
-      const result = await this.resolveKind(kind, context, lastGood);
-
-      if (result.card) {
-        cards.push(result.card);
-      }
-
-      states[kind] = result.state;
-    }
-
-    const snapshot: PresenceSnapshot = {
-      cards,
-      generatedAt: now.toISOString(),
-      sources: states
-    };
+    const snapshot = await resolvePresenceSnapshot(
+      this.resolutionPlan,
+      this.createContext(now),
+      lastGood
+    );
 
     await this.writeCache(snapshot, now);
     return snapshot;
   }
 
   async recordPlayed(input: PlayedInput, options: { now?: Date } = {}) {
-    const playingSource = this.config.sources?.playing;
-
-    if (!isRecordablePlayingSource(playingSource)) {
+    if (!isRecordablePlayingSource(this.playingSource)) {
       throw new PresenceError("The playing source does not support recording.", {
         code: "recording_not_supported",
         status: 400
       });
     }
 
-    const card = await playingSource.record(input, this.createContext(options.now ?? new Date()));
+    const card = await this.playingSource.record(
+      input,
+      this.createContext(options.now ?? new Date())
+    );
 
     if (this.cache) {
       await this.cache.store.delete(this.cache.key);
@@ -116,11 +115,9 @@ class Presence implements PresenceClient {
   }
 
   private createContext(now: Date): PresenceContext {
-    const fetchImpl = this.config.fetch ?? globalThis.fetch;
-
     return withoutUndefined({
-      fetch: assertFetch(fetchImpl),
-      logger: this.config.logger,
+      fetch: this.fetch ?? assertFetch(globalThis.fetch),
+      logger: this.logger,
       now
     });
   }
@@ -143,20 +140,20 @@ class Presence implements PresenceClient {
     return entry.snapshot;
   }
 
-  private async readLastGoodCards(): Promise<LastGoodCards> {
+  private async readLastGoodCards(): Promise<RecoveryCards> {
     if (!this.cache || this.cache.lastGoodTtlSeconds === 0) {
       return {};
     }
 
     const { lastGoodKey, store } = this.cache;
     const storedEntries = await Promise.all(
-      PRESENCE_ORDER.map(async (kind) => ({
+      this.resolutionPlan.map(async ({ kind }) => ({
         card: await store.get<PresenceCard>(createLastGoodKey(lastGoodKey, kind)),
         kind
       }))
     );
 
-    const cards: LastGoodCards = {};
+    const cards: Partial<Record<PresenceKind, PresenceCard>> = {};
 
     for (const { card, kind } of storedEntries) {
       if (card) {
@@ -172,7 +169,7 @@ class Presence implements PresenceClient {
 
     // The store cannot preserve a legacy entry's remaining TTL or atomically
     // migrate it without replacing a concurrent fresh write, so only read it.
-    for (const kind of PRESENCE_ORDER) {
+    for (const { kind } of this.resolutionPlan) {
       if (cards[kind]) {
         continue;
       }
@@ -196,106 +193,10 @@ class Presence implements PresenceClient {
 
     await Promise.all([
       store.delete(lastGoodKey),
-      ...PRESENCE_ORDER.map((kind) => store.delete(createLastGoodKey(lastGoodKey, kind)))
+      ...this.resolutionPlan.map(({ kind }) => {
+        return store.delete(createLastGoodKey(lastGoodKey, kind));
+      })
     ]);
-  }
-
-  private async resolveKind(
-    kind: PresenceKind,
-    context: PresenceContext,
-    lastGood: LastGoodCards
-  ) {
-    const source = this.config.sources?.[kind];
-
-    if (!source) {
-      const fallback = this.fallbackFor(kind);
-
-      if (fallback) {
-        return {
-          card: fallback,
-          state: state("fallback", fallback)
-        };
-      }
-
-      return {
-        card: null,
-        state: { status: "disabled" } satisfies PresenceSourceState
-      };
-    }
-
-    try {
-      const card = await source.getCard(context);
-
-      if (card) {
-        const freshCard = { ...card, stale: false } as PresenceCard;
-        return {
-          card: freshCard,
-          state: state("fresh", freshCard)
-        };
-      }
-
-      const fallback = this.fallbackFor(kind);
-
-      if (fallback) {
-        return {
-          card: fallback,
-          state: state("fallback", fallback)
-        };
-      }
-
-      return {
-        card: null,
-        state: {
-          source: source.source,
-          status: "empty"
-        } satisfies PresenceSourceState
-      };
-    } catch (error) {
-      context.logger?.warn?.("Presence source failed.", {
-        error: getErrorMessage(error),
-        kind,
-        source: source.source
-      });
-
-      const staleCard = lastGood[kind];
-
-      if (staleCard) {
-        const card = { ...staleCard, stale: true } as PresenceCard;
-        return {
-          card,
-          state: state("stale", card)
-        };
-      }
-
-      const fallback = this.fallbackFor(kind);
-
-      if (fallback) {
-        return {
-          card: fallback,
-          state: state("fallback", fallback)
-        };
-      }
-
-      return {
-        card: null,
-        state: {
-          source: source.source,
-          status: "error"
-        } satisfies PresenceSourceState
-      };
-    }
-  }
-
-  private fallbackFor(kind: PresenceKind): PresenceCard | null {
-    if (kind === "building") {
-      return normalizeBuildingFallback(this.config.fallbacks?.building);
-    }
-
-    if (kind === "playing") {
-      return normalizePlayingFallback(this.config.fallbacks?.playing);
-    }
-
-    return normalizeListeningFallback(this.config.fallbacks?.listening);
   }
 
   private async writeCache(snapshot: PresenceSnapshot, now: Date) {
@@ -336,12 +237,13 @@ class Presence implements PresenceClient {
   }
 }
 
-function createEmptyStates(): Record<PresenceKind, PresenceSourceState> {
-  return {
-    building: { status: "disabled" },
-    listening: { status: "disabled" },
-    playing: { status: "disabled" }
-  };
+function normalizePresenceConfig(config: PresenceConfig): NormalizedPresenceConfig {
+  return Object.freeze({
+    cache: normalizeCache(config.cache),
+    fetch: config.fetch ? assertFetch(config.fetch) : undefined,
+    logger: config.logger,
+    resolutionPlan: normalizeResolutionPlan(config)
+  });
 }
 
 function createLastGoodKey(baseKey: string, kind: PresenceKind) {
@@ -357,12 +259,18 @@ function findFreshCard(snapshot: PresenceSnapshot, kind: PresenceKind) {
 }
 
 function isRecordablePlayingSource(
-  source: false | null | PresenceSource | undefined
+  source: PresenceSource | null
 ): source is RecordablePlayingSource {
-  return Boolean(source && "record" in source && typeof source.record === "function");
+  if (!source || !("record" in source)) {
+    return false;
+  }
+
+  return typeof source.record === "function";
 }
 
-function normalizeCache(cache: false | PresenceCacheOptions | undefined) {
+function normalizeCache(
+  cache: false | PresenceCacheOptions | undefined
+): NormalizedCache | undefined {
   if (cache === false) {
     return undefined;
   }
@@ -389,78 +297,5 @@ function normalizeCache(cache: false | PresenceCacheOptions | undefined) {
     lastGoodTtlSeconds,
     store: cache?.store ?? memoryStore(),
     ttlSeconds
-  } satisfies NormalizedCache;
-}
-
-function normalizeBuildingFallback(
-  fallback: BuildingFallback | undefined
-): BuildingPresenceCard | null {
-  if (!fallback) {
-    return null;
-  }
-
-  return withoutUndefined({
-    description: fallback.description,
-    href: fallback.href,
-    kind: "building" as const,
-    label: fallback.label ?? "Building",
-    metadata: fallback.metadata,
-    repo: fallback.repo,
-    source: fallback.source ?? "manual",
-    title: fallback.title,
-    updatedAt: dateToIso(fallback.updatedAt)
-  });
-}
-
-function normalizeListeningFallback(
-  fallback: ListeningFallback | undefined
-): ListeningPresenceCard | null {
-  if (!fallback) {
-    return null;
-  }
-
-  return withoutUndefined({
-    album: fallback.album,
-    artist: fallback.artist,
-    href: fallback.href,
-    image: fallback.image,
-    isNowPlaying: fallback.isNowPlaying,
-    kind: "listening" as const,
-    label: fallback.label ?? "Listening to",
-    metadata: fallback.metadata,
-    source: fallback.source ?? "manual",
-    title: fallback.title,
-    updatedAt: dateToIso(fallback.updatedAt)
-  });
-}
-
-function normalizePlayingFallback(
-  fallback: PlayingFallback | undefined
-): PlayingPresenceCard | null {
-  if (!fallback) {
-    return null;
-  }
-
-  return withoutUndefined({
-    device: fallback.device,
-    href: fallback.href,
-    kind: "playing" as const,
-    label: fallback.label ?? "Playing",
-    metadata: fallback.metadata,
-    platform: fallback.platform,
-    source: fallback.source ?? "manual",
-    title: fallback.title,
-    updatedAt: dateToIso(fallback.updatedAt)
-  });
-}
-
-function state(
-  status: PresenceSourceState["status"],
-  card: PresenceCard
-): PresenceSourceState {
-  return withoutUndefined({
-    source: card.source,
-    status,
-    updatedAt: card.updatedAt
-  });
+  };
 }
