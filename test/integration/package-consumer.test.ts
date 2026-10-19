@@ -2,7 +2,15 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { ModuleKind, transpileModule } from "typescript";
+import {
+  createProgram,
+  flattenDiagnosticMessageText,
+  getParsedCommandLineOfConfigFile,
+  getPreEmitDiagnostics,
+  ModuleKind,
+  sys,
+  transpileModule
+} from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 
 const root = process.cwd();
@@ -24,10 +32,30 @@ describe("packed npm package", () => {
     const consumerDir = await createConsumerProject();
     await writeConsumerFiles(consumerDir);
 
-    execFileSync("pnpm", ["exec", "tsc", "-p", path.join(consumerDir, "tsconfig.json")], {
+    const configPath = path.join(consumerDir, "tsconfig.json");
+    execFileSync("pnpm", ["exec", "tsc-rs", "-p", configPath], {
       cwd: root,
       stdio: "pipe"
     });
+
+    // Published declarations must also work with the supported JavaScript compiler.
+    const config = getParsedCommandLineOfConfigFile(configPath, {}, {
+      ...sys,
+      onUnRecoverableConfigFileDiagnostic(diagnostic) {
+        throw new Error(flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+      }
+    });
+
+    if (!config) {
+      throw new Error("Could not parse the consumer TypeScript configuration.");
+    }
+
+    const program = createProgram(config.fileNames, config.options);
+    const diagnostics = [...config.errors, ...getPreEmitDiagnostics(program)];
+    const messages = diagnostics.map((diagnostic) =>
+      flattenDiagnosticMessageText(diagnostic.messageText, "\n")
+    );
+    expect(messages).toEqual([]);
 
     const consumerSource = await readFile(path.join(consumerDir, "consumer.ts"), "utf8");
     const consumerModule = transpileModule(consumerSource, {
@@ -41,7 +69,7 @@ describe("packed npm package", () => {
     });
 
     expect(output.trim()).toBe("ok");
-  });
+  }, 15_000);
 
   it("loads the Next example with WakaTime enabled and returns its public project", async () => {
     const consumerDir = await createConsumerProject();

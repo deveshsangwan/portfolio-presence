@@ -32,6 +32,11 @@ The package is hybrid by design:
 There are no runtime dependencies. React is an optional peer dependency used
 only by the `/react` export.
 
+## Development
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for local checks, the `tsc-rs` compiler
+setup, and the tools that still require the JavaScript TypeScript API.
+
 ## Configure Presence
 
 Create a shared server-side module:
