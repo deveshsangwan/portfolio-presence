@@ -34,7 +34,7 @@ only by the `/react` export.
 
 ## Development
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for local checks, the `tsc-rs` compiler
+See [CONTRIBUTING.md](https://github.com/deveshsangwan/portfolio-presence/blob/main/CONTRIBUTING.md) for local checks, the `tsc-rs` compiler
 setup, and the tools that still require the JavaScript TypeScript API.
 
 ## Configure Presence
