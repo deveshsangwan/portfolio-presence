@@ -39,3 +39,8 @@ mount.
 Use `refreshIntervalMs` for polling. The hook pauses that interval while the page
 is hidden and refreshes when the page becomes visible or the window regains focus.
 It also exposes `refresh()` for manual updates.
+
+The hook validates successful JSON responses before replacing the snapshot. If a
+request fails or returns an invalid snapshot, `status` becomes `"error"`, `error`
+contains the failure, and `snapshot` retains the last valid data. A later valid
+response clears the error and returns the hook to `"success"`.

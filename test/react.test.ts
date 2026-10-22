@@ -44,6 +44,66 @@ const postVisibleSnapshot: PresenceSnapshot = {
   generatedAt: "2026-08-31T10:10:00.000Z"
 };
 
+const completeSnapshot: PresenceSnapshot = {
+  cards: [
+    {
+      description: "",
+      href: "/projects/portfolio-presence",
+      kind: "building",
+      label: "Building",
+      metadata: {
+        progress: 0,
+        public: true,
+        details: { tags: ["typescript", null, false, { count: 2 }] }
+      },
+      repo: "deveshsangwan/portfolio-presence",
+      source: "custom-building",
+      stale: false,
+      title: "portfolio-presence",
+      updatedAt: "2026-08-31T10:00:00.000Z"
+    },
+    {
+      device: "Phone",
+      href: "app://games/example",
+      kind: "playing",
+      label: "Playing",
+      metadata: {},
+      platform: "ios",
+      source: "played",
+      stale: true,
+      title: "Example Game",
+      updatedAt: "2026-08-31T09:00:00.000Z"
+    },
+    {
+      album: "An Album",
+      artist: "An Artist",
+      href: "https://example.test/track",
+      image: "/album.jpg",
+      isNowPlaying: false,
+      kind: "listening",
+      label: "Listening to",
+      source: "lastfm",
+      title: "A Track"
+    }
+  ],
+  generatedAt: "2026-08-31T10:05:00.000Z",
+  sources: {
+    building: {
+      source: "custom-building",
+      status: "fallback",
+      updatedAt: "2026-08-31T10:00:00.000Z"
+    },
+    listening: { source: "lastfm", status: "fresh" },
+    playing: {
+      source: "played",
+      status: "stale",
+      updatedAt: "2026-08-31T09:00:00.000Z"
+    }
+  }
+};
+
+const presenceKinds = ["building", "playing", "listening"] as const;
+
 interface HookProbeProps {
   endpoint?: string;
   onRender?: (result: UsePresenceResult) => void;
@@ -144,7 +204,7 @@ function readHookState(container: HTMLElement) {
   };
 }
 
-function createSnapshotResponse(snapshot: PresenceSnapshot) {
+function createSnapshotResponse(snapshot: unknown) {
   return new Response(JSON.stringify(snapshot), {
     headers: { "content-type": "application/json" },
     status: 200
@@ -214,6 +274,289 @@ describe("usePresence", () => {
     expect(fetcher).toHaveBeenCalledOnce();
     expect(readHookState(rendered.container)).toEqual({
       generatedAt: refreshedSnapshot.generatedAt,
+      status: "success"
+    });
+  });
+
+  it.each([
+    {
+      name: "an error payload",
+      body: { error: "temporarily unavailable" }
+    },
+    {
+      name: "an unknown card kind",
+      body: {
+        ...refreshedSnapshot,
+        cards: [
+          {
+            kind: "working",
+            label: "Working",
+            source: "custom",
+            title: "portfolio-presence"
+          }
+        ]
+      }
+    },
+    ...[null, false, 42, "unavailable", [], {}].map((body) => ({
+      name: `an invalid top level ${JSON.stringify(body)}`,
+      body
+    })),
+    ...[undefined, null, {}, "cards"].map((cards) => ({
+      name: `invalid cards ${JSON.stringify(cards)}`,
+      body: { ...refreshedSnapshot, cards }
+    })),
+    ...[undefined, null, 42].map((generatedAt) => ({
+      name: `an invalid generatedAt ${JSON.stringify(generatedAt)}`,
+      body: { ...refreshedSnapshot, generatedAt }
+    })),
+    ...[undefined, null, []].map((sources) => ({
+      name: `invalid sources ${JSON.stringify(sources)}`,
+      body: { ...refreshedSnapshot, sources }
+    })),
+    ...[null, false, 42, "card", []].map((card) => ({
+      name: `an invalid card ${JSON.stringify(card)}`,
+      body: { ...refreshedSnapshot, cards: [card] }
+    })),
+    ...presenceKinds.flatMap((kind) =>
+      ["kind", "label", "title", "source"].flatMap((field) =>
+        [undefined, null, 42].map((value) => ({
+          name: `a ${kind} card with ${field} ${JSON.stringify(value)}`,
+          body: {
+            ...refreshedSnapshot,
+            cards: [
+              ...refreshedSnapshot.cards,
+              { kind, label: "Activity", source: "custom", title: "Example", [field]: value }
+            ]
+          }
+        }))
+      )
+    ),
+    ...presenceKinds.flatMap((kind) =>
+      ["href", "updatedAt", "stale"].flatMap((field) =>
+        [null, 42].map((value) => ({
+          name: `a ${kind} card with ${field} ${JSON.stringify(value)}`,
+          body: {
+            ...refreshedSnapshot,
+            cards: [{ kind, label: "Activity", source: "custom", title: "Example", [field]: value }]
+          }
+        }))
+      )
+    ),
+    ...[
+      { kind: "building", field: "description" },
+      { kind: "building", field: "repo" },
+      { kind: "playing", field: "device" },
+      { kind: "playing", field: "platform" },
+      { kind: "listening", field: "album" },
+      { kind: "listening", field: "artist" },
+      { kind: "listening", field: "image" },
+      { kind: "listening", field: "isNowPlaying" }
+    ].flatMap(({ kind, field }) =>
+      [null, 42].map((value) => ({
+        name: `a ${kind} card with ${field} ${JSON.stringify(value)}`,
+        body: {
+          ...refreshedSnapshot,
+          cards: [{ kind, label: "Activity", source: "custom", title: "Example", [field]: value }]
+        }
+      }))
+    ),
+    ...[null, [], "metadata", 42].map((metadata) => ({
+      name: `invalid metadata ${JSON.stringify(metadata)}`,
+      body: {
+        ...refreshedSnapshot,
+        cards: [{ kind: "building", label: "Building", source: "custom", title: "Example", metadata }]
+      }
+    })),
+    ...presenceKinds.flatMap((kind) =>
+      [undefined, null, [], {}, { status: "unknown" }, { status: 42 }].map((state) => ({
+        name: `an invalid ${kind} source state ${JSON.stringify(state)}`,
+        body: {
+          ...refreshedSnapshot,
+          sources: { ...refreshedSnapshot.sources, [kind]: state }
+        }
+      }))
+    ),
+    ...presenceKinds.flatMap((kind) =>
+      ["source", "updatedAt"].flatMap((field) =>
+        [null, 42].map((value) => ({
+          name: `a ${kind} source with ${field} ${JSON.stringify(value)}`,
+          body: {
+            ...refreshedSnapshot,
+            sources: {
+              ...refreshedSnapshot.sources,
+              [kind]: { status: "fresh", [field]: value }
+            }
+          }
+        }))
+      )
+    )
+  ])("rejects a malformed successful response containing $name", async ({ body }) => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(createSnapshotResponse(body))
+      .mockResolvedValueOnce(createSnapshotResponse(postVisibleSnapshot));
+    let hookResult: UsePresenceResult | undefined;
+    await renderHook({
+      onRender: (result) => {
+        hookResult = result;
+      },
+      options: { fetcher, initialSnapshot, revalidateOnMount: true }
+    });
+
+    const result = requireHookResult(hookResult);
+
+    expect(result.snapshot).toBe(initialSnapshot);
+    expect(result.status).toBe("error");
+    expect(result.error).toBeInstanceOf(Error);
+
+    await act(async () => {
+      await result.refresh();
+    });
+
+    expect(requireHookResult(hookResult)).toMatchObject({
+      error: null,
+      snapshot: postVisibleSnapshot,
+      status: "success"
+    });
+  });
+
+  it.each([
+    { name: "minimal cards", body: initialSnapshot },
+    { name: "all card variants and optional data", body: completeSnapshot },
+    {
+      name: "a currently playing track",
+      body: {
+        ...completeSnapshot,
+        cards: completeSnapshot.cards.map((card) =>
+          card.kind === "listening" ? { ...card, isNowPlaying: true } : card
+        )
+      }
+    },
+    {
+      name: "additional fields",
+      body: {
+        ...initialSnapshot,
+        version: "custom",
+        cards: initialSnapshot.cards.map((card) => ({ ...card, custom: [1, 2] })),
+        sources: {
+          ...initialSnapshot.sources,
+          building: { status: "fresh", custom: true }
+        }
+      }
+    },
+    ...["fresh", "fallback", "stale", "empty", "disabled", "error"].map((status) => ({
+      name: `an empty snapshot with ${status} sources`,
+      body: {
+        cards: [],
+        generatedAt: initialSnapshot.generatedAt,
+        sources: {
+          building: { status },
+          listening: { status },
+          playing: { status }
+        }
+      }
+    }))
+  ])("accepts a successful response containing $name", async ({ body }) => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(createSnapshotResponse(body));
+    let hookResult: UsePresenceResult | undefined;
+    await renderHook({
+      onRender: (result) => {
+        hookResult = result;
+      },
+      options: { fetcher }
+    });
+
+    expect(requireHookResult(hookResult)).toMatchObject({
+      error: null,
+      snapshot: body,
+      status: "success"
+    });
+  });
+
+  it("reports a malformed initial response without creating a snapshot and can retry", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(createSnapshotResponse({ error: "unavailable" }))
+      .mockResolvedValueOnce(createSnapshotResponse(completeSnapshot));
+    let hookResult: UsePresenceResult | undefined;
+    await renderHook({
+      onRender: (result) => {
+        hookResult = result;
+      },
+      options: { fetcher }
+    });
+
+    expect(requireHookResult(hookResult)).toMatchObject({
+      error: expect.any(Error),
+      snapshot: null,
+      status: "error"
+    });
+
+    await act(async () => {
+      await requireHookResult(hookResult).refresh();
+    });
+
+    expect(requireHookResult(hookResult)).toMatchObject({
+      error: null,
+      snapshot: completeSnapshot,
+      status: "success"
+    });
+  });
+
+  it.each([
+    {
+      name: "a malformed snapshot",
+      createResponse: () => createSnapshotResponse({ error: "unavailable" })
+    },
+    {
+      name: "an HTTP failure",
+      createResponse: () => new Response("unavailable", { status: 503 })
+    },
+    {
+      name: "invalid JSON",
+      createResponse: () => new Response("{", { status: 200 })
+    },
+    {
+      name: "non-finite nested metadata",
+      createResponse: () => new Response(
+        JSON.stringify(completeSnapshot).replace('"progress":0', '"progress":1e400'),
+        { status: 200 }
+      )
+    }
+  ])("retains the latest fetched snapshot after $name and recovers", async ({ createResponse }) => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(createSnapshotResponse(completeSnapshot))
+      .mockResolvedValueOnce(createResponse())
+      .mockResolvedValueOnce(createSnapshotResponse(postVisibleSnapshot));
+    let hookResult: UsePresenceResult | undefined;
+    await renderHook({
+      onRender: (result) => {
+        hookResult = result;
+      },
+      options: { fetcher, initialSnapshot, revalidateOnMount: true }
+    });
+    const fetchedSnapshot = requireHookResult(hookResult).snapshot;
+
+    expect(fetchedSnapshot).toEqual(completeSnapshot);
+
+    await act(async () => {
+      await requireHookResult(hookResult).refresh();
+    });
+
+    const failedResult = requireHookResult(hookResult);
+
+    expect(failedResult.snapshot).toBe(fetchedSnapshot);
+    expect(failedResult.status).toBe("error");
+    expect(failedResult.error).toBeInstanceOf(Error);
+
+    await act(async () => {
+      await failedResult.refresh();
+    });
+
+    expect(requireHookResult(hookResult)).toMatchObject({
+      error: null,
+      snapshot: postVisibleSnapshot,
       status: "success"
     });
   });
