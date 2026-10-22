@@ -1,0 +1,40 @@
+src/react.ts
+  s_57e31144336ed3::t_a7e50b46f37fe8 8,100,106-107
+  s_57e31144336ed3::t_dcc895f94f5e73 108-109
+src/core/snapshot.ts
+  s_57e31144336ed3::t_a7e50b46f37fe8 1,4-28,58-60,62-72,97-101
+  s_57e31144336ed3::t_e5d5264dbd4a5c 2-3,29-57,61,73-96
+docs/frameworks/react.md
+  s_7fe437c78f1eab::t_6372dd44c79081 42-46
+package.json
+  s_7fe437c78f1eab::t_bbeccff5d2d298 3
+test/react.test.ts
+  s_57e31144336ed3::t_e5d5264dbd4a5c 299
+  s_57e31144336ed3::t_7e4608f02544d1 281-298,393,398-410,421-422
+  s_57e31144336ed3::t_c198d990b7423a 423-563
+  s_57e31144336ed3::t_a89c1230c6f08f 47-106,207,300-392,394-397,411-420
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b85726a49e8c4c584675860f07effebcc10ea7e4",
+  "prompts": {},
+  "sessions": {
+    "s_57e31144336ed3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a164d7-5c83-7051-934d-5f7e783bab1c",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Devesh Sangwan <deveshsangwan@192.168.1.12>"
+    },
+    "s_7fe437c78f1eab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a164d6-b3e4-7711-ac0e-bd3c43179433",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Devesh Sangwan <deveshsangwan@192.168.1.12>"
+    }
+  }
+}
