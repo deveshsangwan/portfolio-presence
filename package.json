@@ -61,7 +61,7 @@
     "test:examples": "pnpm --dir examples/next-basic build",
     "test:integration": "vitest run test/integration",
     "test:unit": "vitest run test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc-rs --noEmit"
   },
   "peerDependencies": {
     "react": ">=18.3.0 || >=19.0.0"
@@ -80,6 +80,7 @@
     "publint": "^0.3.21",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "tsc-rs": "0.7.0",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
     "vitepress": "^1.6.4",

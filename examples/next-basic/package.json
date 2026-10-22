@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build"
+    "build": "pnpm typecheck && next build",
+    "typecheck": "next typegen && tsc-rs --noEmit"
   },
   "dependencies": {
     "next": "^16.2.9",
@@ -14,6 +15,7 @@
   "devDependencies": {
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "tsc-rs": "0.7.0",
     "typescript": "^6.0.3"
   }
 }
