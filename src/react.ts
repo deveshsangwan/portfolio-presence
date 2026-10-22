@@ -5,6 +5,7 @@ import {
   useRef,
   useState
 } from "react";
+import { isPresenceSnapshot } from "./core/snapshot";
 import type { PresenceSnapshot } from "./core/types";
 
 export type PresenceHookStatus = "idle" | "loading" | "success" | "error";
@@ -96,10 +97,14 @@ export function usePresence(
           throw new Error(`Presence request failed with ${response.status}.`);
         }
 
-        const nextSnapshot = (await response.json()) as PresenceSnapshot;
+        const nextSnapshot: unknown = await response.json();
 
         if (!isCurrentRequest()) {
           return;
+        }
+
+        if (!isPresenceSnapshot(nextSnapshot)) {
+          throw new Error("Presence response is not a valid snapshot.");
         }
 
         setSnapshot(nextSnapshot);
